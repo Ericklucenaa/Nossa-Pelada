@@ -7,18 +7,11 @@ export const Login = ({ setMode }: { setMode: (m: 'login' | 'register') => void 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  // Fallback para o MVP local (selecionar da lista) se o usuário quiser
-  const [selectedUser, setSelectedUser] = useState<string>('');
-  
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedUser) {
-      login(selectedUser);
-    } else {
-      alert('Integração Firebase pendente: ' + email);
-      // Fallback pra login admin provisório:
-      login(users[0]?.id);
-    }
+    alert('Integração Firebase pendente: ' + email);
+    // Fallback pra login admin provisório:
+    login(users[0]?.id);
   };
 
   const handleGoogleLogin = () => {
@@ -47,15 +40,7 @@ export const Login = ({ setMode }: { setMode: (m: 'login' | 'register') => void 
              <input type="password" className="input-base" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
           </div>
 
-          <div style={{ margin: '1rem 0' }}>
-             <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.8rem', color: 'var(--color-warning)' }}>(Modo Teste Local) Selecione Perfil Mock</label>
-             <select className="input-base" value={selectedUser} onChange={e => setSelectedUser(e.target.value)}>
-                <option value="">Entrar c/ Email acima...</option>
-                {users.map(u => (
-                  <option key={u.id} value={u.id}>{u.name} (OVR: {u.overall})</option>
-                ))}
-             </select>
-          </div>
+
           
           <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '1rem' }}>
             <LogIn size={20} /> Entrar

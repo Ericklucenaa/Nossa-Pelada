@@ -20,8 +20,21 @@ export const MatchDetail = () => {
     updateMatchPlayer(match.id, playerId, { attendance: status });
   };
 
-  const handlePayment = (playerId: string, status: MatchPlayer['paymentStatus']) => {
-    updateMatchPlayer(match.id, playerId, { paymentStatus: status });
+  const handlePayment = (playerId: string, status: MatchPlayer['paymentStatus'], isMensalista: boolean) => {
+    if (isMensalista) {
+      const matchDate = new Date(match.date);
+      const matchMonth = `${matchDate.getFullYear()}-${String(matchDate.getMonth() + 1).padStart(2, '0')}`;
+      matches.filter(m => {
+        const d = new Date(m.date);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` === matchMonth;
+      }).forEach(m => {
+        if (m.players.some((p: any) => p.userId === playerId)) {
+          updateMatchPlayer(m.id, playerId, { paymentStatus: status });
+        }
+      });
+    } else {
+      updateMatchPlayer(match.id, playerId, { paymentStatus: status });
+    }
   };
 
   const playersFullData = match.players.map((p: MatchPlayer) => {
@@ -125,13 +138,30 @@ export const MatchDetail = () => {
 
         {activeTab === 'financeiro' && (
           <div>
-            <h2 style={{ marginBottom: '1rem' }}>Status Financeiro</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+              <h2 style={{ margin: 0 }}>Status Financeiro</h2>
+              <div style={{ textAlign: 'right', background: 'var(--color-surface-light)', padding: '0.5rem 1rem', borderRadius: '8px' }}>
+                <span style={{ display: 'block', fontSize: '0.9rem', color: 'var(--color-primary)', fontWeight: 'bold' }}>Recebido: R$ {
+                   playersFullData.filter((p:any) => p.paymentStatus === 'Pago' && p.attendance === 'Confirmado').reduce((sum: number, p:any) => sum + (p.user.subscriptionType === 'Mensalista' ? (match.valorMensal || 0) : (match.valorAvulso || 0)), 0).toFixed(2)
+                }</span>
+                <span style={{ display: 'block', fontSize: '0.9rem', color: 'var(--color-warning)', fontWeight: 'bold' }}>Pendente: R$ {
+                   playersFullData.filter((p:any) => p.paymentStatus === 'Pendente' && p.attendance === 'Confirmado').reduce((sum: number, p:any) => sum + (p.user.subscriptionType === 'Mensalista' ? (match.valorMensal || 0) : (match.valorAvulso || 0)), 0).toFixed(2)
+                }</span>
+              </div>
+            </div>
+
             <div style={{ display: 'grid', gap: '1rem' }}>
-              {playersFullData.map((p: any, index: number) => (
+              {playersFullData.map((p: any, index: number) => {
+                const playerCost = p.user.subscriptionType === 'Mensalista' ? (match.valorMensal || 0) : (match.valorAvulso || 0);
+
+                return (
                 <div key={p.userId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: index % 2 === 0 ? 'var(--color-surface-light)' : 'transparent', borderRadius: 'var(--radius-sm)', borderBottom: '1px solid var(--border-color)' }}>
                   <div>
-                    <h4 style={{ margin: 0 }}>{p.user.name}</h4>
-                    <span style={{ fontSize: '0.8rem', padding: '2px 6px', borderRadius: '4px', background: p.user.subscriptionType === 'Mensalista' ? 'var(--color-primary)' : 'rgba(255,255,255,0.1)', color: p.user.subscriptionType === 'Mensalista' ? '#fff' : 'var(--text-muted)' }}>
+                    <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      {p.user.name}
+                      <span style={{ fontSize: '0.85rem', color: 'var(--color-accent)' }}>R$ {playerCost.toFixed(2)}</span>
+                    </h4>
+                    <span style={{ display: 'inline-block', marginTop: '0.4rem', fontSize: '0.8rem', padding: '2px 6px', borderRadius: '4px', background: p.user.subscriptionType === 'Mensalista' ? 'var(--color-primary)' : 'rgba(255,255,255,0.1)', color: p.user.subscriptionType === 'Mensalista' ? '#fff' : 'var(--text-muted)' }}>
                       {p.user.subscriptionType}
                     </span>
                   </div>
@@ -143,14 +173,15 @@ export const MatchDetail = () => {
                         <span style={{ color: p.paymentStatus === 'Pago' ? 'var(--color-primary)' : 'var(--color-danger)', fontWeight: 'bold' }}>
                           {p.paymentStatus}
                         </span>
-                        <button className="btn-outline" style={{ padding: '0.5rem', borderColor: p.paymentStatus === 'Pago' ? 'var(--color-primary)' : 'var(--color-danger)', color: p.paymentStatus === 'Pago' ? 'var(--color-primary)' : 'var(--color-danger)' }} onClick={() => handlePayment(p.userId, p.paymentStatus === 'Pago' ? 'Pendente' : 'Pago')}>
+                        <button className="btn-outline" style={{ padding: '0.5rem', borderColor: p.paymentStatus === 'Pago' ? 'var(--color-primary)' : 'var(--color-danger)', color: p.paymentStatus === 'Pago' ? 'var(--color-primary)' : 'var(--color-danger)' }} onClick={() => handlePayment(p.userId, p.paymentStatus === 'Pago' ? 'Pendente' : 'Pago', p.user.subscriptionType === 'Mensalista')}>
                           <BadgeDollarSign size={20} />
                         </button>
                       </>
                     )}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

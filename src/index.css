@@ -136,6 +136,36 @@ a {
   transform: translateY(-2px);
 }
 
+.btn-danger {
+  background: var(--color-danger);
+  color: #ffffff;
+  font-weight: 700;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: var(--radius-full);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+}
+
+[data-theme='dark'] .btn-danger {
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(247, 37, 133, 0.3);
+}
+
+.btn-danger:hover {
+  filter: brightness(0.9);
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
+  transform: translateY(-2px);
+}
+
+[data-theme='dark'] .btn-danger:hover {
+  box-shadow: 0 0 15px rgba(247, 37, 133, 0.5);
+}
+
 .btn-outline {
   background: transparent;
   color: var(--color-primary);
