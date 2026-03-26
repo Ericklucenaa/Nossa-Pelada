@@ -51,7 +51,7 @@ export const Login = ({ setMode }: { setMode: (m: 'login' | 'register') => void 
         borderTopLeftRadius: '30px', borderTopRightRadius: '30px',
         boxShadow: '0 -4px 20px rgba(0,0,0,0.07)'
       }}>
-        <h2 style={{ marginBottom: '0.5rem', fontSize: '1.6rem', fontWeight: 700 }}>Bem-vindo de volta</h2>
+        <h2 style={{ marginBottom: '0.5rem', fontSize: '1.6rem', fontWeight: 700 }}>Seja Bem-vindo</h2>
         <p className="text-muted" style={{ marginBottom: '2rem', fontSize: '0.9rem' }}>
           Acesse sua conta para continuar
         </p>

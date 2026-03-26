@@ -22,7 +22,7 @@ export const Dashboard = () => {
       <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 className="text-gradient">Resumo da Rodada</h1>
-          <p className="subtitle" style={{ margin: 0 }}>Bem-vindo de volta, {currentUser?.name}</p>
+          <p className="subtitle" style={{ margin: 0 }}>Seja Bem-vindo, {currentUser?.name}</p>
         </div>
         <button className="btn-primary" onClick={exportData} style={{ fontSize: '0.9rem', padding: '0.5rem 1rem' }}>Exportar</button>
       </header>
