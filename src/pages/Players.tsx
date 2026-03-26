@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAppContext } from '../context/AppDataContext';
+import { useAppContext } from '../context/useAppContext';
 import { Shield, Trash, UserPlus } from 'lucide-react';
 
 import type { User } from '../types';

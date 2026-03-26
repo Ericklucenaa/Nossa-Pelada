@@ -1,4 +1,4 @@
-import { useAppContext } from '../context/AppDataContext';
+import { useAppContext } from '../context/useAppContext';
 import { User, Activity, Trophy, Target, Share2, Flame } from 'lucide-react';
 
 export const Profile = () => {

@@ -1,9 +1,13 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { User, Court, Match, MatchPlayer } from '../types';
+import type { User as FirebaseUser } from 'firebase/auth';
+import { signOut, signInWithPopup, onAuthStateChanged } from 'firebase/auth';
+import { auth, googleProvider } from '../firebase';
+import type { Court, Match, MatchPlayer, User } from '../types';
+import { AppContext } from './appContext';
 import { calculateOverall } from '../types';
 
-interface AppState {
+export interface AppState {
   users: User[];
   courts: Court[];
   matches: Match[];
@@ -11,7 +15,7 @@ interface AppState {
   theme: 'light' | 'dark';
 }
 
-interface AppContextType extends AppState {
+export interface AppContextType extends AppState {
   addUser: (user: Omit<User, 'id' | 'overall' | 'goals' | 'assists' | 'matchesPlayed'>) => void;
   updateUser: (userId: string, updates: Partial<User>) => void;
   removeUser: (userId: string) => void;
@@ -20,15 +24,32 @@ interface AppContextType extends AppState {
   updateMatch: (matchId: string, updates: Partial<Match>) => void;
   updateMatchPlayer: (matchId: string, playerId: string, updates: Partial<MatchPlayer>) => void;
   login: (userId: string) => void;
+  loginWithGoogle: () => Promise<void>;
+  loginWithFirebaseUser: (fbUser: FirebaseUser) => void;
   logout: () => void;
   drawTeams: (matchId: string) => void;
   recordEvent: (matchId: string, playerId: string, type: 'goal' | 'assist') => void;
+  setMatchStats: (matchId: string, playerId: string, goals: number, assists: number) => void;
   swapPlayers: (matchId: string, playerOutId: string, playerInId: string) => void;
   toggleTheme: () => void;
   joinMatch: (matchId: string, userId: string) => void;
   removeMatch: (matchId: string) => void;
   deleteCourt: (courtId: string) => void;
+  authLoading: boolean;
 }
+
+type PlayerWithUser = {
+  player: MatchPlayer;
+  user: User;
+};
+
+const STORAGE_KEY = 'nossaPeladaState';
+const TEAM_NAMES = ['1', '2', '3', '4', '5', '6', '7', '8'] as const;
+
+const createId = (): string =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2, 10);
 
 const defaultMockUsers: User[] = [
   { id: '1', name: 'João (Admin)', position: 'Linha', photoUrl: '', matchesPlayed: 10, goals: 5, assists: 3, attributes: { pace: 80, shooting: 75, passing: 85, dribbling: 82, defending: 60, physical: 70 }, overall: 78, subscriptionType: 'Mensalista' },
@@ -43,274 +64,501 @@ const defaultMockCourts: Court[] = [
 ];
 
 const defaultMockMatches: Match[] = [
-  { id: '1', name: 'Pelada de Quarta', courtId: 'Arena Soccer', date: new Date().toISOString(), valorAvulso: 20, valorMensal: 60, stats: {}, players: defaultMockUsers.map((u, i) => ({ userId: u.id, attendance: i < 4 ? 'Confirmado' : 'De Fora', paymentStatus: i % 2 === 0 ? 'Pago' : 'Pendente', paymentType: 'Mensalista' }))}
+  {
+    id: '1',
+    name: 'Pelada de Quarta',
+    courtId: '1',
+    date: new Date().toISOString(),
+    valorAvulso: 20,
+    valorMensal: 60,
+    stats: {},
+    players: defaultMockUsers.map((user, index) => ({
+      userId: user.id,
+      attendance: index < 4 ? 'Confirmado' : 'De Fora',
+      paymentStatus: 'Pendente',
+      paymentType: user.subscriptionType,
+    })),
+  },
 ];
 
-const getStoredState = (): AppState => {
-  const saved = localStorage.getItem('nossaPeladaState');
-  if (saved) return JSON.parse(saved);
-  return { users: defaultMockUsers, courts: defaultMockCourts, matches: defaultMockMatches, currentUser: null, theme: 'light' };
+const defaultState: AppState = {
+  users: defaultMockUsers,
+  courts: defaultMockCourts,
+  matches: defaultMockMatches,
+  currentUser: null,
+  theme: 'light',
 };
 
-const AppContext = createContext<AppContextType | undefined>(undefined);
+const sanitizeState = (value: unknown): AppState => {
+  if (!value || typeof value !== 'object') return defaultState;
+  const candidate = value as Partial<AppState>;
+  return {
+    users: Array.isArray(candidate.users) ? candidate.users : defaultState.users,
+    courts: Array.isArray(candidate.courts) ? candidate.courts : defaultState.courts,
+    matches: Array.isArray(candidate.matches) ? candidate.matches : defaultState.matches,
+    currentUser: candidate.currentUser && typeof candidate.currentUser === 'object' ? candidate.currentUser as User : null,
+    theme: candidate.theme === 'dark' ? 'dark' : 'light',
+  };
+};
+
+const getStoredState = (): AppState => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved ? sanitizeState(JSON.parse(saved)) : defaultState;
+  } catch {
+    return defaultState;
+  }
+};
+
+const sortPlayers = (a: PlayerWithUser, b: PlayerWithUser): number => {
+  if (a.user.subscriptionType !== b.user.subscriptionType) {
+    return a.user.subscriptionType === 'Mensalista' ? -1 : 1;
+  }
+  return b.user.overall - a.user.overall;
+};
+
+const getPlayersWithUser = (players: MatchPlayer[], users: User[]): PlayerWithUser[] =>
+  players
+    .map((player) => {
+      const user = users.find((candidate) => candidate.id === player.userId);
+      return user ? { player, user } : null;
+    })
+    .filter((entry): entry is PlayerWithUser => Boolean(entry));
+
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
-  const [state, setState] = useState<AppState>(getStoredState());
+  const [state, setState] = useState<AppState>(getStoredState);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // Listen to Firebase Auth state changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+      if (fbUser) {
+        loginWithFirebaseUser(fbUser);
+      }
+      setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('nossaPeladaState', JSON.stringify(state));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     document.documentElement.setAttribute('data-theme', state.theme);
   }, [state]);
 
-  const addUser = (userData: Omit<User, 'id' | 'overall' | 'goals' | 'assists' | 'matchesPlayed'>) => {
+  const addUser: AppContextType['addUser'] = (userData) => {
     const newUser: User = {
       ...userData,
-      id: Math.random().toString(36).substring(7),
+      id: createId(),
       overall: calculateOverall(userData.attributes, userData.position),
       goals: 0,
       assists: 0,
-      matchesPlayed: 0
+      matchesPlayed: 0,
     };
-    setState((prev: AppState) => ({ ...prev, users: [...prev.users, newUser], currentUser: prev.currentUser || newUser }));
-  };
 
-  const removeUser = (userId: string) => {
-    setState((prev: AppState) => ({
+    setState((prev) => ({
       ...prev,
-      users: prev.users.filter((u: User) => u.id !== userId),
-      matches: prev.matches.map(m => ({ ...m, players: m.players.filter(p => p.userId !== userId) }))
+      users: [...prev.users, newUser],
+      currentUser: prev.currentUser ?? newUser,
     }));
   };
 
-  const updateUser = (userId: string, updates: Partial<User>) => {
-    setState((prev: AppState) => {
-      const updatedUsers = prev.users.map(u => {
-        if (u.id !== userId) return u;
-        const newUser = { ...u, ...updates };
-        // Recalcular overall se necessário
+  const removeUser: AppContextType['removeUser'] = (userId) => {
+    setState((prev) => ({
+      ...prev,
+      users: prev.users.filter((user) => user.id !== userId),
+      matches: prev.matches.map((match) => ({
+        ...match,
+        players: match.players.filter((player) => player.userId !== userId),
+        stats: Object.fromEntries(Object.entries(match.stats).filter(([key]) => key !== userId)),
+      })),
+      // Never clear currentUser on player deletion — auth is managed by Firebase.
+      // Only logout() should end the session.
+    }));
+  };
+
+  const updateUser: AppContextType['updateUser'] = (userId, updates) => {
+    setState((prev) => {
+      const updatedUsers = prev.users.map((user) => {
+        if (user.id !== userId) return user;
+        const nextUser: User = { ...user, ...updates };
         if (updates.attributes || updates.position) {
-          newUser.overall = calculateOverall(newUser.attributes, newUser.position);
+          nextUser.overall = calculateOverall(nextUser.attributes, nextUser.position);
         }
-        return newUser;
+        return nextUser;
       });
-      return { 
-        ...prev, 
+
+      return {
+        ...prev,
         users: updatedUsers,
-        currentUser: prev.currentUser?.id === userId ? updatedUsers.find(u => u.id === userId) || prev.currentUser : prev.currentUser 
+        currentUser:
+          prev.currentUser?.id === userId
+            ? updatedUsers.find((user) => user.id === userId) ?? null
+            : prev.currentUser,
       };
     });
   };
 
-  const addCourt = (courtData: Omit<Court, 'id'>) => {
-    setState((prev: AppState) => ({ ...prev, courts: [...prev.courts, { ...courtData, id: Math.random().toString(36).substring(7) }] }));
-  };
-
-  const addMatch = (matchData: Omit<Match, 'id' | 'stats'>) => {
-    const newMatch: Match = { ...matchData, id: Math.random().toString(36).substring(7), stats: {} };
-    setState((prev: AppState) => ({ ...prev, matches: [...prev.matches, newMatch] }));
-  };
-
-  const updateMatch = (matchId: string, updates: Partial<Match>) => {
-    setState((prev: AppState) => ({
+  const addCourt: AppContextType['addCourt'] = (courtData) => {
+    setState((prev) => ({
       ...prev,
-      matches: prev.matches.map(m => m.id === matchId ? { ...m, ...updates } : m)
+      courts: [...prev.courts, { ...courtData, id: createId() }],
     }));
   };
 
-  const updateMatchPlayer = (matchId: string, playerId: string, updates: Partial<MatchPlayer>) => {
-    setState((prev: AppState) => ({
+  const addMatch: AppContextType['addMatch'] = (matchData) => {
+    const newMatch: Match = { ...matchData, id: createId(), stats: {} };
+    setState((prev) => ({ ...prev, matches: [...prev.matches, newMatch] }));
+  };
+
+  const updateMatch: AppContextType['updateMatch'] = (matchId, updates) => {
+    setState((prev) => ({
       ...prev,
-      matches: prev.matches.map((m: Match) => m.id === matchId ? {
-        ...m, players: m.players.map((p: MatchPlayer) => p.userId === playerId ? { ...p, ...updates } : p)
-      } : m)
+      matches: prev.matches.map((match) => (match.id === matchId ? { ...match, ...updates } : match)),
     }));
   };
 
-  const drawTeams = (matchId: string) => {
-    setState((prev: AppState) => ({
+  const updateMatchPlayer: AppContextType['updateMatchPlayer'] = (matchId, playerId, updates) => {
+    setState((prev) => ({
       ...prev,
-      matches: prev.matches.map((m: Match) => {
-        if (m.id !== matchId) return m;
+      matches: prev.matches.map((match) =>
+        match.id === matchId
+          ? {
+              ...match,
+              players: match.players.map((player) =>
+                player.userId === playerId ? { ...player, ...updates } : player,
+              ),
+            }
+          : match,
+      ),
+    }));
+  };
 
-        const confirmed: MatchPlayer[] = m.players.filter((p: MatchPlayer) => p.attendance === 'Confirmado');
-        const confirmedUsers = confirmed.map((p: MatchPlayer) => {
-          const u = state.users.find((user: User) => user.id === p.userId)!;
-          return { player: p, user: u };
-        });
+  const drawTeams: AppContextType['drawTeams'] = (matchId) => {
+    setState((prev) => ({
+      ...prev,
+      matches: prev.matches.map((match) => {
+        if (match.id !== matchId) return match;
 
-        // Sort priority: Mensalista first, then overall desc
-        const sortPlayers = (a: any, b: any) => {
-           if (a.user.subscriptionType !== b.user.subscriptionType) {
-               return a.user.subscriptionType === 'Mensalista' ? -1 : 1;
-           }
-           return b.user.overall - a.user.overall;
+        const confirmedPlayers = getPlayersWithUser(
+          match.players.filter((player) => player.attendance === 'Confirmado'),
+          prev.users,
+        ).sort(sortPlayers);
+
+        if (confirmedPlayers.length < 2) {
+          return { ...match, players: match.players.map((player) => ({ ...player, team: null })) };
+        }
+
+        const TARGET_SIZE = 5;
+        const total = confirmedPlayers.length;
+        const numTeams = Math.min(TEAM_NAMES.length, Math.max(2, Math.ceil(total / TARGET_SIZE)));
+
+        // Complete teams fill to TARGET_SIZE; last team gets the remainder
+        const remainder = total % TARGET_SIZE;
+        const teamCapacities = new Array(numTeams).fill(TARGET_SIZE) as number[];
+        if (remainder > 0) teamCapacities[numTeams - 1] = remainder;
+
+        // Split by subscription type, maintaining OVR sort within each group
+        const mensalistas = confirmedPlayers.filter((e) => e.user.subscriptionType === 'Mensalista');
+        const avulsos = confirmedPlayers.filter((e) => e.user.subscriptionType !== 'Mensalista');
+
+        // Mensalistas fill the first N teams, avulsos fill the rest
+        const numMensalistaTeams = Math.min(numTeams, Math.max(1, Math.ceil(mensalistas.length / TARGET_SIZE)));
+        const mensalistaZoneEnd = avulsos.length > 0 ? numMensalistaTeams : numTeams;
+
+        const updatedPlayers = match.players.map((p) => ({ ...p, team: null as string | null }));
+        const teamSizes = new Array(numTeams).fill(0) as number[];
+        const teamTotals = new Array(numTeams).fill(0) as number[];
+
+        // Helper: assign a player to the best team within a zone (lowest OVR total with capacity)
+        // Falls back to any available team if zone is full
+        const assignToZone = (entry: (typeof confirmedPlayers)[0], zoneStart: number, zoneEnd: number) => {
+          let bestTeam = -1;
+          let bestTotal = Infinity;
+          // Try zone first
+          for (let i = zoneStart; i < zoneEnd; i++) {
+            if (teamSizes[i] < teamCapacities[i] && teamTotals[i] < bestTotal) {
+              bestTotal = teamTotals[i];
+              bestTeam = i;
+            }
+          }
+          // Fallback: any team with capacity
+          if (bestTeam < 0) {
+            bestTotal = Infinity;
+            for (let i = 0; i < numTeams; i++) {
+              if (teamSizes[i] < teamCapacities[i] && teamTotals[i] < bestTotal) {
+                bestTotal = teamTotals[i];
+                bestTeam = i;
+              }
+            }
+          }
+          if (bestTeam >= 0) {
+            const playerIndex = updatedPlayers.findIndex((p) => p.userId === entry.player.userId);
+            if (playerIndex >= 0) {
+              updatedPlayers[playerIndex].team = TEAM_NAMES[bestTeam];
+              teamSizes[bestTeam]++;
+              teamTotals[bestTeam] += entry.user.overall;
+            }
+          }
         };
 
-        const goalkeepers = confirmedUsers.filter((cu: any) => cu.user.position === 'Goleiro').sort(sortPlayers);
-        const fieldPlayers = confirmedUsers.filter((cu: any) => cu.user.position === 'Linha').sort(sortPlayers);
-        
-        // Count possible full teams
-        const maxTeamsByGK = goalkeepers.length;
-        const maxTeamsByFP = Math.floor(fieldPlayers.length / 4);
-        const possibleTeamsCount = Math.min(maxTeamsByGK, maxTeamsByFP);
-        
-        const teamNames = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-        const numTeams = Math.max(2, Math.min(possibleTeamsCount, teamNames.length));
-        
-        const teamOVRs = new Array(numTeams).fill(0);
-        const updatedPlayers: MatchPlayer[] = [...m.players].map(p => ({ ...p, team: null }));
-        
-        // 1. Distribute GKs
-        for(let i=0; i<numTeams; i++) {
-           if (i < goalkeepers.length) {
-               const gk = goalkeepers[i];
-               const matchPlayerIndex = updatedPlayers.findIndex((up: MatchPlayer) => up.userId === gk.player.userId);
-               updatedPlayers[matchPlayerIndex].team = teamNames[i];
-               teamOVRs[i] += gk.user.overall;
-           }
-        }
-        
-        // 2. Distribute FPs
-        // Iterate through FPs, filling Teams in chunks of 2 (A/B, C/D...)
-        let fpIndex = 0;
-        for (let pairStart = 0; pairStart < numTeams; pairStart += 2) {
-           const team1Index = pairStart;
-           const team2Index = pairStart + 1;
-           const isPair = team2Index < numTeams;
-           
-           if (isPair) {
-               let bucket = fieldPlayers.slice(fpIndex, fpIndex + 8);
-               fpIndex += 8;
-               bucket.forEach(fp => {
-                  const targetIndex = teamOVRs[team1Index] <= teamOVRs[team2Index] ? team1Index : team2Index;
-                  const matchPlayerIndex = updatedPlayers.findIndex((up: MatchPlayer) => up.userId === fp.player.userId);
-                  updatedPlayers[matchPlayerIndex].team = teamNames[targetIndex];
-                  teamOVRs[targetIndex] += fp.user.overall;
-               });
-           } else {
-               let bucket = fieldPlayers.slice(fpIndex, fpIndex + 4);
-               fpIndex += 4;
-               bucket.forEach(fp => {
-                  const matchPlayerIndex = updatedPlayers.findIndex((up: MatchPlayer) => up.userId === fp.player.userId);
-                  updatedPlayers[matchPlayerIndex].team = teamNames[team1Index];
-               });
-           }
-        }
-        
-        return { ...m, players: updatedPlayers };
-      })
+        // — MENSALISTAS —
+        const mensalistaGKs = mensalistas.filter((e) => e.user.position === 'Goleiro');
+        const mensalistaField = mensalistas.filter((e) => e.user.position !== 'Goleiro');
+        // Anchor one mensalista GK per mensalista team
+        mensalistaGKs.slice(0, mensalistaZoneEnd).forEach((gk, index) => {
+          const playerIndex = updatedPlayers.findIndex((p) => p.userId === gk.player.userId);
+          if (playerIndex >= 0) {
+            updatedPlayers[playerIndex].team = TEAM_NAMES[index];
+            teamSizes[index]++;
+            teamTotals[index] += gk.user.overall;
+          }
+        });
+        // Distribute remaining mensalistas (field + extra GKs) in their zone
+        const extraMensalistaGKs = mensalistaGKs.slice(mensalistaZoneEnd);
+        [...mensalistaField, ...extraMensalistaGKs]
+          .sort((a, b) => b.user.overall - a.user.overall)
+          .forEach((e) => assignToZone(e, 0, mensalistaZoneEnd));
+
+        // — AVULSOS —
+        const avulsoGKs = avulsos.filter((e) => e.user.position === 'Goleiro');
+        const avulsoField = avulsos.filter((e) => e.user.position !== 'Goleiro');
+        // Anchor one avulso GK per avulso team
+        avulsoGKs.slice(0, numTeams - mensalistaZoneEnd).forEach((gk, index) => {
+          const teamIndex = mensalistaZoneEnd + index;
+          const playerIndex = updatedPlayers.findIndex((p) => p.userId === gk.player.userId);
+          if (playerIndex >= 0) {
+            updatedPlayers[playerIndex].team = TEAM_NAMES[teamIndex];
+            teamSizes[teamIndex]++;
+            teamTotals[teamIndex] += gk.user.overall;
+          }
+        });
+        // Distribute remaining avulsos (field + extra GKs) in their zone
+        const extraAvulsoGKs = avulsoGKs.slice(numTeams - mensalistaZoneEnd);
+        [...avulsoField, ...extraAvulsoGKs]
+          .sort((a, b) => b.user.overall - a.user.overall)
+          .forEach((e) => assignToZone(e, mensalistaZoneEnd, numTeams));
+
+        return { ...match, players: updatedPlayers };
+      }),
     }));
   };
 
-  const recordEvent = (matchId: string, playerId: string, type: 'goal' | 'assist') => {
-    setState((prev: AppState) => {
-      // Update global user stats
-      const users = prev.users.map(u => 
-        u.id === playerId ? { ...u, goals: u.goals + (type === 'goal' ? 1 : 0), assists: u.assists + (type === 'assist' ? 1 : 0) } : u
+
+
+  const recordEvent: AppContextType['recordEvent'] = (matchId, playerId, type) => {
+    setState((prev) => {
+      const users = prev.users.map((user) =>
+        user.id === playerId
+          ? {
+              ...user,
+              goals: user.goals + (type === 'goal' ? 1 : 0),
+              assists: user.assists + (type === 'assist' ? 1 : 0),
+            }
+          : user,
       );
-      
-      // Update match specific stats
-      const matches = prev.matches.map(m => {
-        if (m.id !== matchId) return m;
-        const currentStats = m.stats || {};
-        const playerStats = currentStats[playerId] || { goals: 0, assists: 0 };
+
+      const matches = prev.matches.map((match) => {
+        if (match.id !== matchId) return match;
+        const currentStats = match.stats ?? {};
+        const playerStats = currentStats[playerId] ?? { goals: 0, assists: 0 };
+
         return {
-          ...m,
+          ...match,
           stats: {
             ...currentStats,
             [playerId]: {
               goals: playerStats.goals + (type === 'goal' ? 1 : 0),
-              assists: playerStats.assists + (type === 'assist' ? 1 : 0)
-            }
-          }
+              assists: playerStats.assists + (type === 'assist' ? 1 : 0),
+            },
+          },
         };
       });
 
-      // Update currentUser if applicable
-      const currentUser = prev.currentUser?.id === playerId ? users.find(u => u.id === playerId) || prev.currentUser : prev.currentUser;
-      
-      return { ...prev, users, matches, currentUser };
-    });
-  };
-
-  const swapPlayers = (matchId: string, playerOutId: string, playerInId: string) => {
-    setState((prev: AppState) => ({
-      ...prev,
-      matches: prev.matches.map(m => {
-        if (m.id !== matchId) return m;
-        const players = m.players.map(p => {
-          // If player is out, move to De Fora, remove their team
-          if (p.userId === playerOutId) return { ...p, attendance: 'De Fora' as const, team: null };
-          // If player is in, move to Confirmado (team can be assigned later, or we just put them pending for drawTeams)
-          if (p.userId === playerInId) return { ...p, attendance: 'Confirmado' as const, team: null };
-          return p;
-        });
-        return { ...m, players };
-      })
-    }));
-  };
-
-  const joinMatch = (matchId: string, userId: string) => {
-    setState((prev: AppState) => {
-      const user = prev.users.find(u => u.id === userId);
-      if(!user) return prev;
       return {
         ...prev,
-        matches: prev.matches.map(m => {
-          if (m.id !== matchId) return m;
-          if (m.players.some(p => p.userId === userId)) return m; // Já está na partida
-          const newPlayer: MatchPlayer = {
-            userId,
-            attendance: 'Confirmado',
-            paymentStatus: user.subscriptionType === 'Mensalista' ? 'Pago' : 'Pendente',
-            paymentType: user.subscriptionType
-          };
-          return { ...m, players: [...m.players, newPlayer] };
-        })
+        users,
+        matches,
+        currentUser: prev.currentUser?.id === playerId ? users.find((user) => user.id === playerId) ?? null : prev.currentUser,
       };
     });
   };
 
-  const removeMatch = (matchId: string) => {
-    setState((prev: AppState) => ({
-      ...prev,
-      matches: prev.matches.filter(m => m.id !== matchId)
-    }));
-  };
-
-  const deleteCourt = (courtId: string) => {
-    setState((prev: AppState) => ({
-      ...prev,
-      courts: prev.courts.filter(c => c.id !== courtId)
-    }));
-  };
-
-  const login = (userId: string) => {
-    const user = state.users.find((u: User) => u.id === userId);
-    if(user) setState((prev: AppState) => ({ ...prev, currentUser: user }));
-  };
-
-  const toggleTheme = () => {
-    setState((prev: AppState) => {
-      const newTheme = prev.theme === 'light' ? 'dark' : 'light';
-      document.documentElement.setAttribute('data-theme', newTheme);
-      return { ...prev, theme: newTheme };
+  // Set exact goals/assists for a player in a match; recalculates lifetime totals by summing all matches.
+  const setMatchStats = (matchId: string, playerId: string, goals: number, assists: number) => {
+    setState((prev) => {
+      const matches = prev.matches.map((match) =>
+        match.id === matchId
+          ? { ...match, stats: { ...(match.stats ?? {}), [playerId]: { goals, assists } } }
+          : match,
+      );
+      // Recalculate global totals from all match stats
+      const users = prev.users.map((user) => {
+        if (user.id !== playerId) return user;
+        let totalGoals = 0;
+        let totalAssists = 0;
+        matches.forEach((m) => {
+          if (m.stats?.[playerId]) {
+            totalGoals += m.stats[playerId].goals || 0;
+            totalAssists += m.stats[playerId].assists || 0;
+          }
+        });
+        return { ...user, goals: totalGoals, assists: totalAssists };
+      });
+      return {
+        ...prev,
+        matches,
+        users,
+        currentUser: prev.currentUser?.id === playerId ? users.find((u) => u.id === playerId) ?? null : prev.currentUser,
+      };
     });
   };
 
-  const logout = () => {
-    setState((prev: AppState) => ({ ...prev, currentUser: null }));
+  const swapPlayers: AppContextType['swapPlayers'] = (matchId, playerOutId, playerInId) => {
+    setState((prev) => ({
+      ...prev,
+      matches: prev.matches.map((match) => {
+        if (match.id !== matchId) return match;
+
+        const playerOut = match.players.find((player) => player.userId === playerOutId);
+        const outTeam = playerOut?.team ?? null;
+
+        return {
+          ...match,
+          players: match.players.map((player) => {
+            if (player.userId === playerOutId) {
+              return { ...player, attendance: 'De Fora', team: null };
+            }
+            if (player.userId === playerInId) {
+              return { ...player, attendance: 'Confirmado', team: outTeam };
+            }
+            return player;
+          }),
+        };
+      }),
+    }));
+  };
+
+  const joinMatch: AppContextType['joinMatch'] = (matchId, userId) => {
+    setState((prev) => {
+      const user = prev.users.find((candidate) => candidate.id === userId);
+      if (!user) return prev;
+
+      return {
+        ...prev,
+        matches: prev.matches.map((match) => {
+          if (match.id !== matchId || match.players.some((player) => player.userId === userId)) {
+            return match;
+          }
+
+          const newPlayer: MatchPlayer = {
+            userId,
+            attendance: 'Confirmado',
+            paymentStatus: 'Pendente',
+            paymentType: user.subscriptionType,
+            team: null,
+          };
+
+          return { ...match, players: [...match.players, newPlayer] };
+        }),
+      };
+    });
+  };
+
+  const removeMatch: AppContextType['removeMatch'] = (matchId) => {
+    setState((prev) => ({
+      ...prev,
+      matches: prev.matches.filter((match) => match.id !== matchId),
+    }));
+  };
+
+  const deleteCourt: AppContextType['deleteCourt'] = (courtId) => {
+    setState((prev) => ({
+      ...prev,
+      courts: prev.courts.filter((court) => court.id !== courtId),
+      matches: prev.matches.map((match) =>
+        match.courtId === courtId ? { ...match, courtId: '' } : match,
+      ),
+    }));
+  };
+
+  const login: AppContextType['login'] = (userId) => {
+    setState((prev) => ({
+      ...prev,
+      currentUser: prev.users.find((user) => user.id === userId) ?? null,
+    }));
+  };
+
+  const loginWithFirebaseUser = (fbUser: FirebaseUser) => {
+    setState((prev) => {
+      // Check if a user with this Firebase UID already exists
+      const existing = prev.users.find((u) => u.id === fbUser.uid);
+      if (existing) {
+        return { ...prev, currentUser: existing };
+      }
+      // Auto-create a new app user from the Google profile
+      const newUser: User = {
+        id: fbUser.uid,
+        name: fbUser.displayName ?? 'Jogador',
+        photoUrl: fbUser.photoURL ?? '',
+        position: 'Linha',
+        matchesPlayed: 0,
+        goals: 0,
+        assists: 0,
+        subscriptionType: 'Avulso',
+        attributes: { pace: 70, shooting: 70, passing: 70, dribbling: 70, defending: 70, physical: 70 },
+        overall: 70,
+      };
+      return {
+        ...prev,
+        users: [...prev.users, newUser],
+        currentUser: newUser,
+      };
+    });
+  };
+
+  const loginWithGoogle: AppContextType['loginWithGoogle'] = async () => {
+    const result = await signInWithPopup(auth, googleProvider);
+    loginWithFirebaseUser(result.user);
+  };
+
+  const toggleTheme: AppContextType['toggleTheme'] = () => {
+    setState((prev) => ({ ...prev, theme: prev.theme === 'light' ? 'dark' : 'light' }));
+  };
+
+  const logout: AppContextType['logout'] = () => {
+    signOut(auth).catch(() => {});
+    setState((prev) => ({ ...prev, currentUser: null }));
   };
 
   return (
-    <AppContext.Provider value={{ ...state, addUser, updateUser, removeUser, addCourt, addMatch, updateMatch, updateMatchPlayer, login, logout, drawTeams, recordEvent, swapPlayers, toggleTheme, joinMatch, removeMatch, deleteCourt }}>
+    <AppContext.Provider
+      value={{
+        ...state,
+        addUser,
+        updateUser,
+        removeUser,
+        addCourt,
+        addMatch,
+        updateMatch,
+        updateMatchPlayer,
+        login,
+        loginWithGoogle,
+        loginWithFirebaseUser,
+        logout,
+        drawTeams,
+        recordEvent,
+        setMatchStats,
+        swapPlayers,
+        toggleTheme,
+        joinMatch,
+        removeMatch,
+        deleteCourt,
+        authLoading,
+      }}
+    >
       {children}
     </AppContext.Provider>
   );
-};
-
-export const useAppContext = () => {
-  const context = useContext(AppContext);
-  if (!context) throw new Error("useAppContext must be used within AppProvider");
-  return context;
 };

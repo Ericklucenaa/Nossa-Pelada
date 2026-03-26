@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { useAppContext } from '../context/AppDataContext';
+import { useAppContext } from '../context/useAppContext';
 import { Trophy, Target, Activity, Shield } from 'lucide-react';
 
 export const Rankings = () => {
   const { users, matches } = useAppContext();
-  const [period, setPeriod] = useState<'Geral' | 'Anual' | 'Semanal'>('Geral');
+  const [period, setPeriod] = useState<'Geral' | 'Anual' | 'Semanal'>('Semanal');
 
   const getFilteredMatches = () => {
     const now = new Date();
@@ -49,11 +49,11 @@ export const Rankings = () => {
         <p className="subtitle text-muted" style={{ marginBottom: '1rem' }}>A nata da nossa pelada.</p>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button 
-            className={`btn-primary ${period !== 'Geral' ? 'btn-outline' : ''}`} 
-             style={{ padding: '0.5rem 1rem', background: period === 'Geral' ? 'var(--color-primary)' : 'transparent', border: period === 'Geral' ? 'none' : '1px solid var(--color-primary)', color: period === 'Geral' ? 'black' : 'var(--color-primary)' }}
-            onClick={() => setPeriod('Geral')}
+            className={`btn-primary ${period !== 'Semanal' ? 'btn-outline' : ''}`} 
+            style={{ padding: '0.5rem 1rem', background: period === 'Semanal' ? 'var(--color-primary)' : 'transparent', border: period === 'Semanal' ? 'none' : '1px solid var(--color-primary)', color: period === 'Semanal' ? 'black' : 'var(--color-primary)' }}
+            onClick={() => setPeriod('Semanal')}
           >
-            Geral
+            Semanal
           </button>
           <button 
             className={`btn-primary ${period !== 'Anual' ? 'btn-outline' : ''}`} 
@@ -63,11 +63,11 @@ export const Rankings = () => {
             Anual
           </button>
           <button 
-            className={`btn-primary ${period !== 'Semanal' ? 'btn-outline' : ''}`} 
-            style={{ padding: '0.5rem 1rem', background: period === 'Semanal' ? 'var(--color-primary)' : 'transparent', border: period === 'Semanal' ? 'none' : '1px solid var(--color-primary)', color: period === 'Semanal' ? 'black' : 'var(--color-primary)' }}
-            onClick={() => setPeriod('Semanal')}
+            className={`btn-primary ${period !== 'Geral' ? 'btn-outline' : ''}`} 
+             style={{ padding: '0.5rem 1rem', background: period === 'Geral' ? 'var(--color-primary)' : 'transparent', border: period === 'Geral' ? 'none' : '1px solid var(--color-primary)', color: period === 'Geral' ? 'black' : 'var(--color-primary)' }}
+            onClick={() => setPeriod('Geral')}
           >
-            Semanal
+            Geral
           </button>
         </div>
       </header>

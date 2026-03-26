@@ -1,4 +1,4 @@
-import { useAppContext } from '../context/AppDataContext';
+import { useAppContext } from '../context/useAppContext';
 import { Users, Calendar, Trophy, Activity } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
