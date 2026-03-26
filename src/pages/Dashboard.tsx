@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 export const Dashboard = () => {
   const { matches, users, currentUser } = useAppContext();
 
-  const totalGols = users.reduce((acc, user) => acc + (user.goals || 0), 0);
+
 
   const exportData = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ users, matches }));
@@ -29,7 +29,7 @@ export const Dashboard = () => {
 
       <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
         <StatCard title="Jogadores" value={users.length.toString()} icon={<Users />} to="/players" />
-        <StatCard title="Estatísticas" value={`${totalGols} Gols`} icon={<Trophy />} to="/rankings" />
+        <StatCard title="Estatísticas" value="Jogadores" icon={<Trophy />} to="/rankings" />
         <StatCard title="Histórico da Pelada" value={`${matches.length} Jogos`} icon={<Calendar />} to="/matches" />
         <StatCard title="Finanças" value="Controle" icon={<Activity />} to="/finance" highlight />
       </div>

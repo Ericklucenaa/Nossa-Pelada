@@ -92,16 +92,18 @@ export const MatchDetail = () => {
 
   return (
     <div className="match-detail" style={{ animation: 'fadeIn 0.5s ease-out' }}>
-      <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <h1 className="text-gradient" style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>{match.name}</h1>
-          <p className="subtitle" style={{ color: 'var(--text-muted)' }}>
-            {new Date(match.date).toLocaleDateString('pt-BR')} das {new Date(match.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} às {match.endTime ? new Date(match.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'} | Confirmados: {confirmedCount} | Reservas: {subsCount}
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '1rem', flexDirection: 'column' }}>
-          <button className="btn-primary" onClick={() => setAddPlayerModal(true)}>Adicionar Jogador</button>
-          <button className="btn-outline" style={{ borderColor: 'var(--color-danger)', color: 'var(--color-danger)' }} onClick={handleDeleteMatch}>Remover Partida</button>
+      <header style={{ marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <h1 className="text-gradient" style={{ fontSize: 'clamp(1.5rem, 5vw, 2.5rem)', marginBottom: '0.25rem', wordBreak: 'break-word' }}>{match.name}</h1>
+            <p className="subtitle" style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+              {new Date(match.date).toLocaleDateString('pt-BR')} das {new Date(match.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} às {match.endTime ? new Date(match.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'} | Confirmados: {confirmedCount} | Reservas: {subsCount}
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+            <button className="btn-primary" style={{ fontSize: '0.8rem', padding: '0.5rem 0.9rem' }} onClick={() => setAddPlayerModal(true)}>+ Jogador</button>
+            <button className="btn-outline" style={{ fontSize: '0.8rem', padding: '0.5rem 0.9rem', borderColor: 'var(--color-danger)', color: 'var(--color-danger)' }} onClick={handleDeleteMatch}>Remover</button>
+          </div>
         </div>
       </header>
 
@@ -145,30 +147,30 @@ export const MatchDetail = () => {
             </div>
             <div style={{ display: 'grid', gap: '1rem' }}>
               {playersFullData.map((player, index) => (
-                <div key={player.userId} style={{ display: 'flex', gap: '1rem', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: index % 2 === 0 ? 'var(--color-surface-light)' : 'transparent', borderRadius: 'var(--radius-sm)', borderBottom: '1px solid var(--border-color)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: 0 }}>
-                    <div style={{ width: '40px', height: '40px', flexShrink: 0, borderRadius: '50%', background: 'var(--color-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+                <div key={player.userId} style={{ display: 'flex', gap: '0.5rem', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: index % 2 === 0 ? 'var(--color-surface-light)' : 'transparent', borderRadius: 'var(--radius-sm)', borderBottom: '1px solid var(--border-color)', overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
+                    <div style={{ width: '36px', height: '36px', flexShrink: 0, borderRadius: '50%', background: 'var(--color-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.8rem' }}>
                       {player.user.overall}
                     </div>
                     <div style={{ minWidth: 0 }}>
-                      <h4 style={{ margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.user.name} <span style={{ color: 'var(--color-primary)', fontSize: '0.8rem' }}>{player.user.position}</span></h4>
-                      <p style={{ margin: 0, fontSize: '0.8rem', color: player.attendance === 'Confirmado' ? 'var(--color-primary)' : player.attendance === 'Pendente' ? 'var(--color-warning)' : player.attendance === 'De Fora' ? 'var(--color-accent)' : 'var(--color-danger)' }}>{player.attendance}</p>
+                      <h4 style={{ margin: 0, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.user.name} <span style={{ color: 'var(--color-primary)', fontSize: '0.75rem' }}>{player.user.position}</span></h4>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: player.attendance === 'Confirmado' ? 'var(--color-primary)' : player.attendance === 'Pendente' ? 'var(--color-warning)' : player.attendance === 'De Fora' ? 'var(--color-accent)' : 'var(--color-danger)' }}>{player.attendance}</p>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0 }}>
-                    <button onClick={() => handleUpdateStatus(player.userId, 'Confirmado')} title="Confirmado" style={{ background: 'transparent', color: player.attendance === 'Confirmado' ? 'var(--color-primary)' : 'var(--text-muted)' }}><CheckSquare /></button>
-                    <button onClick={() => handleUpdateStatus(player.userId, 'De Fora')} title="De Fora" style={{ background: 'transparent', color: player.attendance === 'De Fora' ? 'var(--color-accent)' : 'var(--text-muted)' }}><RefreshCw /></button>
-                    <button onClick={() => handleUpdateStatus(player.userId, 'Pendente')} title="Pendente" style={{ background: 'transparent', color: player.attendance === 'Pendente' ? 'var(--color-warning)' : 'var(--text-muted)' }}><MinusSquare /></button>
-                    <button onClick={() => handleUpdateStatus(player.userId, 'Ausente')} title="Ausente" style={{ background: 'transparent', color: player.attendance === 'Ausente' ? 'var(--color-danger)' : 'var(--text-muted)' }}><XSquare /></button>
-                    <div style={{ width: '1px', height: '24px', background: 'var(--border-color)', margin: '0 2px' }} />
+                  <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center', flexShrink: 0 }}>
+                    <button onClick={() => handleUpdateStatus(player.userId, 'Confirmado')} title="Confirmado" style={{ background: 'transparent', color: player.attendance === 'Confirmado' ? 'var(--color-primary)' : 'var(--text-muted)', padding: '4px' }}><CheckSquare size={18} /></button>
+                    <button onClick={() => handleUpdateStatus(player.userId, 'De Fora')} title="De Fora" style={{ background: 'transparent', color: player.attendance === 'De Fora' ? 'var(--color-accent)' : 'var(--text-muted)', padding: '4px' }}><RefreshCw size={18} /></button>
+                    <button onClick={() => handleUpdateStatus(player.userId, 'Pendente')} title="Pendente" style={{ background: 'transparent', color: player.attendance === 'Pendente' ? 'var(--color-warning)' : 'var(--text-muted)', padding: '4px' }}><MinusSquare size={18} /></button>
+                    <button onClick={() => handleUpdateStatus(player.userId, 'Ausente')} title="Ausente" style={{ background: 'transparent', color: player.attendance === 'Ausente' ? 'var(--color-danger)' : 'var(--text-muted)', padding: '4px' }}><XSquare size={18} /></button>
+                    <div style={{ width: '1px', height: '20px', background: 'var(--border-color)', margin: '0 2px' }} />
                     <button
                       onClick={() => handleRemoveFromMatch(player.userId, player.user.name)}
                       title="Remover da pelada"
-                      style={{ background: 'transparent', color: 'var(--color-danger)', opacity: 0.7, transition: 'opacity 0.2s' }}
+                      style={{ background: 'transparent', color: 'var(--color-danger)', opacity: 0.7, padding: '4px' }}
                       onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
                       onMouseLeave={e => (e.currentTarget.style.opacity = '0.7')}
                     >
-                      <Trash2 size={18} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 </div>

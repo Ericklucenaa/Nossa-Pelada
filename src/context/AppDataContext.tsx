@@ -189,9 +189,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         return nextUser;
       });
 
+      // If subscriptionType changed, sync paymentType in all matches
+      let updatedMatches = prev.matches;
+      if (updates.subscriptionType) {
+        updatedMatches = prev.matches.map((match) => ({
+          ...match,
+          players: match.players.map((p) =>
+            p.userId === userId ? { ...p, paymentType: updates.subscriptionType! } : p,
+          ),
+        }));
+      }
+
       return {
         ...prev,
         users: updatedUsers,
+        matches: updatedMatches,
         currentUser:
           prev.currentUser?.id === userId
             ? updatedUsers.find((user) => user.id === userId) ?? null
