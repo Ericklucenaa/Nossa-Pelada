@@ -138,13 +138,35 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   // Listen to Firebase Auth state changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      setAuthLoading(true);
       if (fbUser) {
         currentUidRef.current = fbUser.uid;
-        loginWithFirebaseUser(fbUser);
+        
+        // 1. Try to fetch cloud data
+        try {
+          const docRef = doc(db, 'user_data', fbUser.uid);
+          const docSnap = await getDoc(docRef);
+          
+          if (docSnap.exists()) {
+            const cloudData = docSnap.data() as AppState;
+            // Ensure currentUser matches the auth user
+            const existingInCloud = cloudData.users.find(u => u.id === fbUser.uid);
+            setState({ 
+              ...cloudData, 
+              currentUser: existingInCloud || null 
+            });
+          } else {
+            // 2. Fallback to existing logic (creation or local)
+            loginWithFirebaseUser(fbUser);
+          }
+        } catch (err) {
+          console.error('Cloud Sync failed, using local fallback:', err);
+          loginWithFirebaseUser(fbUser);
+        }
       } else {
         currentUidRef.current = null;
-        setState(getStoredState()); // back to shared/base state
+        setState(getStoredState());
       }
       setAuthLoading(false);
     });
@@ -153,11 +175,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    // Save to user-scoped key if logged in, otherwise shared key
+    // 1. Save locally
     const key = currentUidRef.current ? userStorageKey(currentUidRef.current) : STORAGE_KEY;
     localStorage.setItem(key, JSON.stringify(state));
     document.documentElement.setAttribute('data-theme', state.theme);
-  }, [state]);
+
+    // 2. Sync to Cloud if logged in
+    if (currentUidRef.current && !authLoading) {
+      const syncRef = doc(db, 'user_data', currentUidRef.current);
+      setDoc(syncRef, state).catch(err => console.error('Cloud Update error:', err));
+    }
+  }, [state, authLoading]);
 
   const addUser: AppContextType['addUser'] = (userData) => {
     const newUser: User = {
