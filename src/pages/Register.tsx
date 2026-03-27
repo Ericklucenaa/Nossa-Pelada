@@ -157,7 +157,7 @@ export const Register = ({ setMode }: { setMode: (m: 'login' | 'register' | 'for
                 id="reg-username"
                 className={`input-base${fieldError('username') ? ' input-error' : ''}`}
                 type="text"
-                placeholder="Será seu login (Ex: erick_10)"
+                placeholder="Será seu login (Ex: jogador_7)"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 onBlur={() => handleBlur('username')}
