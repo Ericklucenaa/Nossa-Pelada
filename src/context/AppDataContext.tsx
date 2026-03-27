@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import type { ReactNode } from 'react';
 import type { User as FirebaseUser } from 'firebase/auth';
-import { signOut, signInWithPopup, onAuthStateChanged } from 'firebase/auth';
+import { signOut, signInWithPopup, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, updateProfile } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase';
 import type { Court, Match, MatchPlayer, User } from '../types';
 import { AppContext } from './appContext';
-import { calculateOverall } from '../types';
 
 export interface AppState {
   users: User[];
@@ -16,7 +15,7 @@ export interface AppState {
 }
 
 export interface AppContextType extends AppState {
-  addUser: (user: Omit<User, 'id' | 'overall' | 'goals' | 'assists' | 'matchesPlayed'>) => void;
+  addUser: (user: Omit<User, 'id' | 'goals' | 'assists' | 'matchesPlayed'>) => void;
   updateUser: (userId: string, updates: Partial<User>) => void;
   removeUser: (userId: string) => void;
   addCourt: (court: Omit<Court, 'id'>) => void;
@@ -36,6 +35,9 @@ export interface AppContextType extends AppState {
   removeMatch: (matchId: string) => void;
   deleteCourt: (courtId: string) => void;
   authLoading: boolean;
+  loginWithEmail: (email: string, password: string) => Promise<void>;
+  registerWithEmail: (email: string, password: string, displayName: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 type PlayerWithUser = {
@@ -44,6 +46,7 @@ type PlayerWithUser = {
 };
 
 const STORAGE_KEY = 'nossaPeladaState';
+const userStorageKey = (uid: string) => `nossaPeladaState_${uid}`;
 const TEAM_NAMES = ['1', '2', '3', '4', '5', '6', '7', '8'] as const;
 
 const createId = (): string =>
@@ -52,11 +55,11 @@ const createId = (): string =>
     : Math.random().toString(36).slice(2, 10);
 
 const defaultMockUsers: User[] = [
-  { id: '1', name: 'João (Admin)', position: 'Linha', photoUrl: '', matchesPlayed: 10, goals: 5, assists: 3, attributes: { pace: 80, shooting: 75, passing: 85, dribbling: 82, defending: 60, physical: 70 }, overall: 78, subscriptionType: 'Mensalista' },
-  { id: '2', name: 'Marcos (Goleiro)', position: 'Goleiro', photoUrl: '', matchesPlayed: 10, goals: 0, assists: 1, attributes: { pace: 50, shooting: 20, passing: 60, dribbling: 40, defending: 85, physical: 80 }, overall: 80, subscriptionType: 'Avulso' },
-  { id: '3', name: 'Lucas (Artilheiro)', position: 'Linha', photoUrl: '', matchesPlayed: 8, goals: 12, assists: 2, attributes: { pace: 85, shooting: 90, passing: 70, dribbling: 88, defending: 40, physical: 75 }, overall: 84, subscriptionType: 'Mensalista' },
-  { id: '4', name: 'Thiago (Xerife)', position: 'Linha', photoUrl: '', matchesPlayed: 9, goals: 1, assists: 1, attributes: { pace: 70, shooting: 40, passing: 65, dribbling: 50, defending: 90, physical: 88 }, overall: 81, subscriptionType: 'Mensalista' },
-  { id: '5', name: 'Pedro (Motorzinho)', position: 'Linha', photoUrl: '', matchesPlayed: 10, goals: 4, assists: 8, attributes: { pace: 90, shooting: 70, passing: 80, dribbling: 85, defending: 65, physical: 85 }, overall: 83, subscriptionType: 'Avulso' },
+  { id: '1', name: 'João (Admin)', position: 'Linha', photoUrl: '', matchesPlayed: 10, goals: 5, assists: 3, subscriptionType: 'Mensalista' },
+  { id: '2', name: 'Marcos (Goleiro)', position: 'Goleiro', photoUrl: '', matchesPlayed: 10, goals: 0, assists: 1, subscriptionType: 'Avulso' },
+  { id: '3', name: 'Lucas (Artilheiro)', position: 'Linha', photoUrl: '', matchesPlayed: 8, goals: 12, assists: 2, subscriptionType: 'Mensalista' },
+  { id: '4', name: 'Thiago (Xerife)', position: 'Linha', photoUrl: '', matchesPlayed: 9, goals: 1, assists: 1, subscriptionType: 'Mensalista' },
+  { id: '5', name: 'Pedro (Motorzinho)', position: 'Linha', photoUrl: '', matchesPlayed: 10, goals: 4, assists: 8, subscriptionType: 'Avulso' },
 ];
 
 const defaultMockCourts: Court[] = [
@@ -86,7 +89,7 @@ const defaultState: AppState = {
   courts: defaultMockCourts,
   matches: defaultMockMatches,
   currentUser: null,
-  theme: 'light',
+  theme: 'dark',
 };
 
 const sanitizeState = (value: unknown): AppState => {
@@ -97,13 +100,14 @@ const sanitizeState = (value: unknown): AppState => {
     courts: Array.isArray(candidate.courts) ? candidate.courts : defaultState.courts,
     matches: Array.isArray(candidate.matches) ? candidate.matches : defaultState.matches,
     currentUser: candidate.currentUser && typeof candidate.currentUser === 'object' ? candidate.currentUser as User : null,
-    theme: candidate.theme === 'dark' ? 'dark' : 'light',
+    theme: candidate.theme === 'light' ? 'light' : 'dark',
   };
 };
 
-const getStoredState = (): AppState => {
+const getStoredState = (uid?: string): AppState => {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const key = uid ? userStorageKey(uid) : STORAGE_KEY;
+    const saved = localStorage.getItem(key);
     return saved ? sanitizeState(JSON.parse(saved)) : defaultState;
   } catch {
     return defaultState;
@@ -114,7 +118,7 @@ const sortPlayers = (a: PlayerWithUser, b: PlayerWithUser): number => {
   if (a.user.subscriptionType !== b.user.subscriptionType) {
     return a.user.subscriptionType === 'Mensalista' ? -1 : 1;
   }
-  return b.user.overall - a.user.overall;
+  return a.user.name.localeCompare(b.user.name);
 };
 
 const getPlayersWithUser = (players: MatchPlayer[], users: User[]): PlayerWithUser[] =>
@@ -129,12 +133,17 @@ const getPlayersWithUser = (players: MatchPlayer[], users: User[]): PlayerWithUs
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [state, setState] = useState<AppState>(getStoredState);
   const [authLoading, setAuthLoading] = useState(true);
+  const currentUidRef = useRef<string | null>(null);
 
   // Listen to Firebase Auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
       if (fbUser) {
+        currentUidRef.current = fbUser.uid;
         loginWithFirebaseUser(fbUser);
+      } else {
+        currentUidRef.current = null;
+        setState(getStoredState()); // back to shared/base state
       }
       setAuthLoading(false);
     });
@@ -143,7 +152,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    // Save to user-scoped key if logged in, otherwise shared key
+    const key = currentUidRef.current ? userStorageKey(currentUidRef.current) : STORAGE_KEY;
+    localStorage.setItem(key, JSON.stringify(state));
     document.documentElement.setAttribute('data-theme', state.theme);
   }, [state]);
 
@@ -151,7 +162,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const newUser: User = {
       ...userData,
       id: createId(),
-      overall: calculateOverall(userData.attributes, userData.position),
       goals: 0,
       assists: 0,
       matchesPlayed: 0,
@@ -173,8 +183,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         players: match.players.filter((player) => player.userId !== userId),
         stats: Object.fromEntries(Object.entries(match.stats).filter(([key]) => key !== userId)),
       })),
-      // Never clear currentUser on player deletion — auth is managed by Firebase.
-      // Only logout() should end the session.
     }));
   };
 
@@ -182,14 +190,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setState((prev) => {
       const updatedUsers = prev.users.map((user) => {
         if (user.id !== userId) return user;
-        const nextUser: User = { ...user, ...updates };
-        if (updates.attributes || updates.position) {
-          nextUser.overall = calculateOverall(nextUser.attributes, nextUser.position);
-        }
-        return nextUser;
+        return { ...user, ...updates };
       });
 
-      // If subscriptionType changed, sync paymentType in all matches
       let updatedMatches = prev.matches;
       if (updates.subscriptionType) {
         updatedMatches = prev.matches.map((match) => ({
@@ -266,42 +269,32 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const total = confirmedPlayers.length;
         const numTeams = Math.min(TEAM_NAMES.length, Math.max(2, Math.ceil(total / TARGET_SIZE)));
 
-        // Complete teams fill to TARGET_SIZE; last team gets the remainder
         const remainder = total % TARGET_SIZE;
         const teamCapacities = new Array(numTeams).fill(TARGET_SIZE) as number[];
         if (remainder > 0) teamCapacities[numTeams - 1] = remainder;
 
-        // Split by subscription type, maintaining OVR sort within each group
         const mensalistas = confirmedPlayers.filter((e) => e.user.subscriptionType === 'Mensalista');
         const avulsos = confirmedPlayers.filter((e) => e.user.subscriptionType !== 'Mensalista');
 
-        // Mensalistas fill the first N teams, avulsos fill the rest
         const numMensalistaTeams = Math.min(numTeams, Math.max(1, Math.ceil(mensalistas.length / TARGET_SIZE)));
         const mensalistaZoneEnd = avulsos.length > 0 ? numMensalistaTeams : numTeams;
 
         const updatedPlayers = match.players.map((p) => ({ ...p, team: null as string | null }));
         const teamSizes = new Array(numTeams).fill(0) as number[];
-        const teamTotals = new Array(numTeams).fill(0) as number[];
 
-        // Helper: assign a player to the best team within a zone (lowest OVR total with capacity)
-        // Falls back to any available team if zone is full
         const assignToZone = (entry: (typeof confirmedPlayers)[0], zoneStart: number, zoneEnd: number) => {
           let bestTeam = -1;
-          let bestTotal = Infinity;
-          // Try zone first
           for (let i = zoneStart; i < zoneEnd; i++) {
-            if (teamSizes[i] < teamCapacities[i] && teamTotals[i] < bestTotal) {
-              bestTotal = teamTotals[i];
+            if (teamSizes[i] < teamCapacities[i]) {
               bestTeam = i;
+              break;
             }
           }
-          // Fallback: any team with capacity
           if (bestTeam < 0) {
-            bestTotal = Infinity;
             for (let i = 0; i < numTeams; i++) {
-              if (teamSizes[i] < teamCapacities[i] && teamTotals[i] < bestTotal) {
-                bestTotal = teamTotals[i];
+              if (teamSizes[i] < teamCapacities[i]) {
                 bestTeam = i;
+                break;
               }
             }
           }
@@ -310,54 +303,39 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             if (playerIndex >= 0) {
               updatedPlayers[playerIndex].team = TEAM_NAMES[bestTeam];
               teamSizes[bestTeam]++;
-              teamTotals[bestTeam] += entry.user.overall;
             }
           }
         };
 
-        // — MENSALISTAS —
         const mensalistaGKs = mensalistas.filter((e) => e.user.position === 'Goleiro');
         const mensalistaField = mensalistas.filter((e) => e.user.position !== 'Goleiro');
-        // Anchor one mensalista GK per mensalista team
         mensalistaGKs.slice(0, mensalistaZoneEnd).forEach((gk, index) => {
           const playerIndex = updatedPlayers.findIndex((p) => p.userId === gk.player.userId);
           if (playerIndex >= 0) {
             updatedPlayers[playerIndex].team = TEAM_NAMES[index];
             teamSizes[index]++;
-            teamTotals[index] += gk.user.overall;
           }
         });
-        // Distribute remaining mensalistas (field + extra GKs) in their zone
         const extraMensalistaGKs = mensalistaGKs.slice(mensalistaZoneEnd);
-        [...mensalistaField, ...extraMensalistaGKs]
-          .sort((a, b) => b.user.overall - a.user.overall)
-          .forEach((e) => assignToZone(e, 0, mensalistaZoneEnd));
+        [...mensalistaField, ...extraMensalistaGKs].forEach((e) => assignToZone(e, 0, mensalistaZoneEnd));
 
-        // — AVULSOS —
         const avulsoGKs = avulsos.filter((e) => e.user.position === 'Goleiro');
         const avulsoField = avulsos.filter((e) => e.user.position !== 'Goleiro');
-        // Anchor one avulso GK per avulso team
         avulsoGKs.slice(0, numTeams - mensalistaZoneEnd).forEach((gk, index) => {
           const teamIndex = mensalistaZoneEnd + index;
           const playerIndex = updatedPlayers.findIndex((p) => p.userId === gk.player.userId);
           if (playerIndex >= 0) {
             updatedPlayers[playerIndex].team = TEAM_NAMES[teamIndex];
             teamSizes[teamIndex]++;
-            teamTotals[teamIndex] += gk.user.overall;
           }
         });
-        // Distribute remaining avulsos (field + extra GKs) in their zone
         const extraAvulsoGKs = avulsoGKs.slice(numTeams - mensalistaZoneEnd);
-        [...avulsoField, ...extraAvulsoGKs]
-          .sort((a, b) => b.user.overall - a.user.overall)
-          .forEach((e) => assignToZone(e, mensalistaZoneEnd, numTeams));
+        [...avulsoField, ...extraAvulsoGKs].forEach((e) => assignToZone(e, mensalistaZoneEnd, numTeams));
 
         return { ...match, players: updatedPlayers };
       }),
     }));
   };
-
-
 
   const recordEvent: AppContextType['recordEvent'] = (matchId, playerId, type) => {
     setState((prev) => {
@@ -397,7 +375,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  // Set exact goals/assists for a player in a match; recalculates lifetime totals by summing all matches.
   const setMatchStats = (matchId: string, playerId: string, goals: number, assists: number) => {
     setState((prev) => {
       const matches = prev.matches.map((match) =>
@@ -405,7 +382,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           ? { ...match, stats: { ...(match.stats ?? {}), [playerId]: { goals, assists } } }
           : match,
       );
-      // Recalculate global totals from all match stats
       const users = prev.users.map((user) => {
         if (user.id !== playerId) return user;
         let totalGoals = 0;
@@ -503,30 +479,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const loginWithFirebaseUser = (fbUser: FirebaseUser) => {
-    setState((prev) => {
-      // Check if a user with this Firebase UID already exists
-      const existing = prev.users.find((u) => u.id === fbUser.uid);
-      if (existing) {
-        return { ...prev, currentUser: existing };
-      }
-      // Auto-create a new app user from the Google profile
-      const newUser: User = {
-        id: fbUser.uid,
-        name: fbUser.displayName ?? 'Jogador',
-        photoUrl: fbUser.photoURL ?? '',
-        position: 'Linha',
-        matchesPlayed: 0,
-        goals: 0,
-        assists: 0,
-        subscriptionType: 'Avulso',
-        attributes: { pace: 70, shooting: 70, passing: 70, dribbling: 70, defending: 70, physical: 70 },
-        overall: 70,
-      };
-      return {
-        ...prev,
-        users: [...prev.users, newUser],
-        currentUser: newUser,
-      };
+    const userState = getStoredState(fbUser.uid);
+    const existing = userState.users.find((u) => u.id === fbUser.uid);
+    if (existing) {
+      setState({ ...userState, currentUser: existing });
+      return;
+    }
+    const newUser: User = {
+      id: fbUser.uid,
+      name: fbUser.displayName ?? 'Jogador',
+      photoUrl: fbUser.photoURL ?? '',
+      position: 'Linha',
+      matchesPlayed: 0,
+      goals: 0,
+      assists: 0,
+      subscriptionType: 'Avulso',
+    };
+    setState({
+      ...defaultState,
+      theme: userState.theme,
+      users: [newUser],
+      currentUser: newUser,
     });
   };
 
@@ -535,13 +508,28 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     loginWithFirebaseUser(result.user);
   };
 
+  const loginWithEmail = async (email: string, password: string): Promise<void> => {
+    await signInWithEmailAndPassword(auth, email, password);
+  };
+
+  const registerWithEmail = async (email: string, password: string, displayName: string): Promise<void> => {
+    const result = await createUserWithEmailAndPassword(auth, email, password);
+    await updateProfile(result.user, { displayName });
+    loginWithFirebaseUser({ ...result.user, displayName });
+  };
+
+  const resetPassword = async (email: string): Promise<void> => {
+    await sendPasswordResetEmail(auth, email);
+  };
+
   const toggleTheme: AppContextType['toggleTheme'] = () => {
     setState((prev) => ({ ...prev, theme: prev.theme === 'light' ? 'dark' : 'light' }));
   };
 
   const logout: AppContextType['logout'] = () => {
     signOut(auth).catch(() => {});
-    setState((prev) => ({ ...prev, currentUser: null }));
+    currentUidRef.current = null;
+    setState((prev) => ({ ...defaultState, theme: prev.theme, currentUser: null }));
   };
 
   return (
@@ -568,6 +556,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         removeMatch,
         deleteCourt,
         authLoading,
+        loginWithEmail,
+        registerWithEmail,
+        resetPassword,
       }}
     >
       {children}

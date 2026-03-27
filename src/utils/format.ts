@@ -20,7 +20,21 @@ export const buildIsoFromDateAndTime = (date: string, time: string): string =>
 export const parseMoneyInput = (raw: FormDataEntryValue | null): number => {
   const value = typeof raw === 'string' ? raw.trim() : '';
   if (!value) return 0;
-  const normalized = value.replace(',', '.');
+  // Remove dots (thousands) and replace comma with dot (decimals)
+  const normalized = value.replace(/\./g, '').replace(',', '.');
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : 0;
+};
+
+export const getNextMatchDate = (originalIso: string, isFixed?: boolean): string => {
+  if (!isFixed) return originalIso;
+  const original = new Date(originalIso);
+  const now = new Date();
+  if (original > now) return originalIso;
+  
+  const next = new Date(original);
+  while (next <= now) {
+    next.setDate(next.getDate() + 7);
+  }
+  return next.toISOString();
 };

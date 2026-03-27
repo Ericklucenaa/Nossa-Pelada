@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { TrendingUp, Clock, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { TrendingUp, Clock, ChevronLeft, ChevronRight, Calendar, Share2 } from 'lucide-react';
 import { useAppContext } from '../context/useAppContext';
 import type { Match, MatchPlayer, PaymentStatus } from '../types';
 import { formatCurrencyBRL, formatMonthDisplay, getMonthKey } from '../utils/format';
@@ -108,21 +108,73 @@ export const Finance = () => {
     setSelectedMonth(`${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}`);
   };
 
+  const handleExportText = () => {
+    let text = `📊 *RESUMO FINANCEIRO - ${formatMonthDisplay(selectedMonth).toUpperCase()}*\n\n`;
+
+    filteredMatches.forEach(match => {
+      const matchEntries = entriesByMatch.get(match.id) ?? [];
+      const dateStr = new Date(match.date).toLocaleDateString('pt-BR');
+      text += `⚽ *${match.name}* (${dateStr})\n`;
+      
+      const paid = matchEntries.filter(e => e.paymentStatus === 'Pago');
+      const pending = matchEntries.filter(e => e.paymentStatus === 'Pendente');
+
+      if (paid.length > 0) {
+        text += `✅ *PAGANTES:*\n`;
+        paid.forEach(e => text += `- ${e.userName} (${e.paymentType})\n`);
+      }
+
+      if (pending.length > 0) {
+        text += `❌ *DEVEDORES:*\n`;
+        pending.forEach(e => text += `- ${e.userName} (${e.paymentType})\n`);
+      }
+      text += `\n`;
+    });
+
+    text += `━━━━━━━━━━━━━━━\n`;
+    text += `💰 *RECEBIDO:* ${formatCurrencyBRL(totalReceived)}\n`;
+    text += `📉 *PENDENTE:* ${formatCurrencyBRL(totalPending)}\n`;
+    text += `\n_Gerado por Nossa Pelada_`;
+
+    if (navigator.share) {
+      navigator.share({ title: 'Resumo Financeiro', text }).catch(() => {
+        navigator.clipboard.writeText(text);
+        alert('Copiado para a área de transferência!');
+      });
+    } else {
+      navigator.clipboard.writeText(text);
+      alert('Copiado para a área de transferência!');
+    }
+  };
+
+
+
   return (
-    <div className="finance-container" style={{ animation: 'fadeIn 0.5s ease-out' }}>
+    <div className="finance-container" style={{ animation: 'fadeIn 0.5s ease-out', paddingBottom: '3rem' }}>
       <header className="page-header" style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 className="text-gradient">Histórico de Finanças</h1>
-          <p className="subtitle text-muted">Controle mensal de mensalidades e pagamentos avulsos.</p>
+          <h1 className="text-gradient" style={{ fontWeight: 800 }}>Finanças</h1>
+          <p className="subtitle text-muted">Controle de mensalidades e avulsos.</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'var(--color-surface)', padding: '0.5rem 1rem', borderRadius: '1rem', border: '1px solid var(--border-color)', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+        
+        <div style={{ display: 'flex', gap: '0.8rem' }}>
+            <button 
+                onClick={handleExportText}
+                className="btn-outline"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem', fontSize: '0.85rem' }}
+            >
+                <Share2 size={16} /> Relatório
+            </button>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'var(--color-surface)', padding: '0.5rem 1rem', borderRadius: '1rem', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-surface)', width: 'fit-content' }}>
           <button onClick={() => shiftMonth(-1)} className="btn-icon" style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '50%', border: 'none', color: 'var(--text-main)', cursor: 'pointer' }}>
             <ChevronLeft size={20} />
           </button>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: '160px', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: '140px', justifyContent: 'center' }}>
             <Calendar size={18} color="var(--color-primary)" />
-            <span style={{ fontSize: '1.1rem', fontWeight: 600, textTransform: 'capitalize' }}>{formatMonthDisplay(selectedMonth)}</span>
+            <span style={{ fontSize: '1rem', fontWeight: 700, textTransform: 'capitalize' }}>{formatMonthDisplay(selectedMonth)}</span>
           </div>
 
           <button onClick={() => shiftMonth(1)} className="btn-icon" style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '50%', border: 'none', color: 'var(--text-main)', cursor: 'pointer' }}>

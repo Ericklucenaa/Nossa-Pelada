@@ -1,6 +1,6 @@
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useState } from 'react';
-import { Shield, ShieldAlert, BadgeDollarSign, CheckSquare, XSquare, MinusSquare, RefreshCw, Trash2 } from 'lucide-react';
+import { Shield, ShieldAlert, BadgeDollarSign, CheckSquare, XSquare, Trash2 } from 'lucide-react';
 import { useAppContext } from '../context/useAppContext';
 import type { MatchPlayer, PaymentStatus, User } from '../types';
 import { formatCurrencyBRL, getMonthKey } from '../utils/format';
@@ -62,7 +62,7 @@ export const MatchDetail = () => {
       return user ? { ...player, user } : null;
     })
     .filter((entry): entry is PlayerRow => Boolean(entry))
-    .sort((a, b) => b.user.overall - a.user.overall);
+    .sort((a, b) => a.user.name.localeCompare(b.user.name));
 
   const playingPlayers = playersFullData.filter((player) => player.team || player.attendance === 'Confirmado');
   const confirmedCount = playersFullData.filter((player) => player.attendance === 'Confirmado').length;
@@ -83,6 +83,12 @@ export const MatchDetail = () => {
     setSwapModal({ active: false, idToSwap: null });
   };
 
+  const handleClearList = () => {
+    if (window.confirm('Esvaziar lista de presença? Isso removerá todos os jogadores registrados nesta pelada.')) {
+      updateMatch(match.id, { players: [] });
+    }
+  };
+
   const handleDeleteMatch = () => {
     if (window.confirm('Tem certeza que deseja excluir esta pelada?')) {
       removeMatch(match.id);
@@ -100,9 +106,9 @@ export const MatchDetail = () => {
               {new Date(match.date).toLocaleDateString('pt-BR')} das {new Date(match.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} às {match.endTime ? new Date(match.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'} | Confirmados: {confirmedCount} | Reservas: {subsCount}
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-            <button className="btn-primary" style={{ fontSize: '0.8rem', padding: '0.5rem 0.9rem' }} onClick={() => setAddPlayerModal(true)}>+ Jogador</button>
-            <button className="btn-outline" style={{ fontSize: '0.8rem', padding: '0.5rem 0.9rem', borderColor: 'var(--color-danger)', color: 'var(--color-danger)' }} onClick={handleDeleteMatch}>Remover</button>
+          <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '0.5rem 0.8rem' }} onClick={() => setAddPlayerModal(true)}>+ Jogador</button>
+            <button className="btn-outline" style={{ fontSize: '0.75rem', padding: '0.5rem 0.8rem', borderColor: 'var(--color-danger)', color: 'var(--color-danger)' }} onClick={handleDeleteMatch}>Excluir</button>
           </div>
         </div>
       </header>
@@ -142,25 +148,28 @@ export const MatchDetail = () => {
       <div className="tab-content glass-panel" style={{ padding: '1.5rem', minHeight: '60vh', position: 'relative' }}>
         {activeTab === 'lista' && (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>Lista de Presença</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', gap: '1rem' }}>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>Lista de Presença</h2>
+              <button 
+                className="btn-outline" 
+                style={{ fontSize: '0.7rem', padding: '0.4rem 0.8rem', borderColor: 'var(--color-warning)', color: 'var(--color-warning)', textTransform: 'uppercase', letterSpacing: '0.5px' }} 
+                onClick={handleClearList}
+              >
+                Limpar Todos
+              </button>
             </div>
             <div style={{ display: 'grid', gap: '1rem' }}>
               {playersFullData.map((player, index) => (
                 <div key={player.userId} style={{ display: 'flex', gap: '0.5rem', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: index % 2 === 0 ? 'var(--color-surface-light)' : 'transparent', borderRadius: 'var(--radius-sm)', borderBottom: '1px solid var(--border-color)', overflow: 'hidden' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
-                    <div style={{ width: '36px', height: '36px', flexShrink: 0, borderRadius: '50%', background: 'var(--color-surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.8rem' }}>
-                      {player.user.overall}
-                    </div>
+
                     <div style={{ minWidth: 0 }}>
                       <h4 style={{ margin: 0, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.user.name} <span style={{ color: 'var(--color-primary)', fontSize: '0.75rem' }}>{player.user.position}</span></h4>
-                      <p style={{ margin: 0, fontSize: '0.75rem', color: player.attendance === 'Confirmado' ? 'var(--color-primary)' : player.attendance === 'Pendente' ? 'var(--color-warning)' : player.attendance === 'De Fora' ? 'var(--color-accent)' : 'var(--color-danger)' }}>{player.attendance}</p>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: player.attendance === 'Confirmado' ? 'var(--color-primary)' : 'var(--color-danger)' }}>{player.attendance}</p>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center', flexShrink: 0 }}>
                     <button onClick={() => handleUpdateStatus(player.userId, 'Confirmado')} title="Confirmado" style={{ background: 'transparent', color: player.attendance === 'Confirmado' ? 'var(--color-primary)' : 'var(--text-muted)', padding: '4px' }}><CheckSquare size={18} /></button>
-                    <button onClick={() => handleUpdateStatus(player.userId, 'De Fora')} title="De Fora" style={{ background: 'transparent', color: player.attendance === 'De Fora' ? 'var(--color-accent)' : 'var(--text-muted)', padding: '4px' }}><RefreshCw size={18} /></button>
-                    <button onClick={() => handleUpdateStatus(player.userId, 'Pendente')} title="Pendente" style={{ background: 'transparent', color: player.attendance === 'Pendente' ? 'var(--color-warning)' : 'var(--text-muted)', padding: '4px' }}><MinusSquare size={18} /></button>
                     <button onClick={() => handleUpdateStatus(player.userId, 'Ausente')} title="Ausente" style={{ background: 'transparent', color: player.attendance === 'Ausente' ? 'var(--color-danger)' : 'var(--text-muted)', padding: '4px' }}><XSquare size={18} /></button>
                     <div style={{ width: '1px', height: '20px', background: 'var(--border-color)', margin: '0 2px' }} />
                     <button
@@ -190,23 +199,25 @@ export const MatchDetail = () => {
             </div>
 
             <div style={{ display: 'grid', gap: '1rem' }}>
-              {financeRows.map((player, index) => {
+              {financeRows
+                .filter(p => !(p.paymentType === 'Mensalista' && p.paymentStatus === 'Pago')) 
+                .map((player, index) => {
                 const playerCost = player.paymentType === 'Mensalista' ? match.valorMensal ?? 0 : match.valorAvulso ?? 0;
                 return (
                   <div key={player.userId} style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: index % 2 === 0 ? 'var(--color-surface-light)' : 'transparent', borderRadius: 'var(--radius-sm)', borderBottom: '1px solid var(--border-color)' }}>
                     <div>
                       <h4 style={{ margin: 0 }}>{player.user.name}</h4>
                       <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                        {player.paymentType} • {formatCurrencyBRL(playerCost)} • {player.paymentStatus}
+                        {player.paymentType} • {formatCurrencyBRL(playerCost)} • <span style={{ color: player.paymentStatus === 'Pago' ? 'var(--color-primary)' : 'var(--color-warning)', fontWeight: 700 }}>{player.paymentStatus}</span>
                       </p>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                       {player.paymentStatus === 'Pago' ? (
-                        <button style={{ background: 'transparent', color: 'var(--color-warning)' }} onClick={() => handlePayment(player.userId, 'Pendente', player.paymentType === 'Mensalista')}>
+                        <button style={{ background: 'transparent', color: 'var(--color-primary)' }} onClick={() => handlePayment(player.userId, 'Pendente', player.paymentType === 'Mensalista')} title="Marcar como Pendente">
                           <BadgeDollarSign size={20} />
                         </button>
                       ) : (
-                        <button style={{ background: 'transparent', color: 'var(--color-primary)' }} onClick={() => handlePayment(player.userId, 'Pago', player.paymentType === 'Mensalista')}>
+                        <button style={{ background: 'transparent', color: 'var(--color-warning)' }} onClick={() => handlePayment(player.userId, 'Pago', player.paymentType === 'Mensalista')} title="Marcar como Pago">
                           <BadgeDollarSign size={20} />
                         </button>
                       )}
@@ -228,7 +239,7 @@ export const MatchDetail = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '2rem' }}>
               {TEAM_NAMES.filter((teamName) => playersFullData.some((player) => player.team === teamName)).map((teamName, index) => {
                 const teamPlayers = playersFullData.filter((player) => player.team === teamName);
-                const ovrVal = teamPlayers.length ? Math.round(teamPlayers.reduce((acc, player) => acc + player.user.overall, 0) / teamPlayers.length) : 0;
+                const ovrVal = teamPlayers.length ? 'Equilibrado' : '--';
                 return (
                   <div key={teamName} style={{ background: index % 2 === 0 ? 'rgba(69, 242, 72, 0.05)' : 'rgba(102, 252, 241, 0.05)', padding: '1.5rem', borderRadius: 'var(--radius-md)', border: index % 2 === 0 ? '1px solid rgba(69, 242, 72, 0.2)' : '1px solid rgba(102, 252, 241, 0.2)' }}>
                     <h3 style={{ marginBottom: '1rem', color: index % 2 === 0 ? 'var(--color-primary)' : 'var(--color-accent)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Shield /> Time {teamName} (OVR {ovrVal})</h3>
@@ -236,7 +247,7 @@ export const MatchDetail = () => {
                       {teamPlayers.map((player) => (
                         <div key={player.userId} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                           <span>{player.user.name} {player.user.position === 'Goleiro' && '🧤'}</span>
-                          <span style={{ fontWeight: 800 }}>{player.user.overall}</span>
+                          <span style={{ fontWeight: 800 }}>{player.user.position}</span>
                         </div>
                       ))}
                     </div>
@@ -310,7 +321,7 @@ export const MatchDetail = () => {
               <div style={{ display: 'grid', gap: '1rem', marginBottom: '2rem' }}>
                 {playersFullData.filter((player) => player.attendance === 'De Fora').map((reserve) => (
                   <button key={reserve.userId} className="btn-outline" onClick={() => confirmSwap(reserve.userId)} style={{ justifyContent: 'space-between', padding: '1rem', width: '100%' }}>
-                    {reserve.user.name} <span style={{ color: 'var(--color-accent)' }}>OVR {reserve.user.overall}</span>
+                    {reserve.user.name} <span style={{ color: 'var(--text-muted)' }}>{reserve.user.position}</span>
                   </button>
                 ))}
                 {playersFullData.filter((player) => player.attendance === 'De Fora').length === 0 && (
@@ -324,16 +335,37 @@ export const MatchDetail = () => {
         )}
 
         {addPlayerModal && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem' }}>
-            <div className="glass-panel" style={{ width: '100%', maxWidth: '400px', padding: '2rem', maxHeight: '90vh', overflowY: 'auto' }}>
-              <h3 style={{ marginBottom: '1rem' }}>Adicionar à Pelada</h3>
-              <p className="text-muted" style={{ marginBottom: '2rem' }}>Escolha jogadores do sistema.</p>
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem', backdropFilter: 'blur(4px)' }}>
+            <div className="glass-panel" style={{ width: '95%', maxWidth: '650px', padding: '2.5rem', maxHeight: '85vh', overflowY: 'auto', background: 'var(--color-surface)', border: '1px solid var(--border-color)', boxShadow: '0 25px 60px rgba(0,0,0,0.7)' }}>
+              <h3 style={{ marginBottom: '0.8rem', fontSize: '1.8rem', color: 'var(--color-primary)', fontWeight: 800 }}>Adicionar à Pelada</h3>
+              <p className="text-muted" style={{ marginBottom: '2.2rem', fontSize: '1rem' }}>Selecione os jogadores abaixo para incluir na lista de presença.</p>
 
-              <div style={{ display: 'grid', gap: '1rem', marginBottom: '2rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
                 {users.filter((user) => !match.players.some((player) => player.userId === user.id)).map((user) => (
-                  <button key={user.id} className="btn-outline" onClick={() => { joinMatch(match.id, user.id); setAddPlayerModal(false); }} style={{ justifyContent: 'space-between', padding: '1rem', width: '100%' }}>
-                    <span style={{ textAlign: 'left' }}>{user.name} <span style={{ display: 'block', margin: '4px 0 0', fontSize: '0.7rem', color: user.subscriptionType === 'Mensalista' ? 'var(--color-primary)' : 'var(--color-accent)' }}>{user.subscriptionType.toUpperCase()}</span></span>
-                    <span style={{ color: 'var(--color-warning)' }}>OVR {user.overall}</span>
+                  <button 
+                    key={user.id} 
+                    className="btn-outline" 
+                    onClick={() => joinMatch(match.id, user.id)} 
+                    style={{ 
+                      justifyContent: 'space-between', 
+                      padding: '1.2rem', 
+                      width: '100%', 
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      background: 'var(--color-surface-light)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 'var(--radius-md)',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>{user.name}</span>
+                      <span style={{ display: 'block', margin: '4px 0 0', fontSize: '0.75rem', color: user.subscriptionType === 'Mensalista' ? 'var(--color-primary)' : 'var(--color-accent)', fontWeight: 800 }}>
+                        {user.subscriptionType.toUpperCase()}
+                      </span>
+                    </div>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600 }}>{user.position}</span>
                   </button>
                 ))}
                 {users.filter((user) => !match.players.some((player) => player.userId === user.id)).length === 0 && (

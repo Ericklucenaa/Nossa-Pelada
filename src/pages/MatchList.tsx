@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Users } from 'lucide-react';
 import { useAppContext } from '../context/useAppContext';
 import type { Match } from '../types';
-import { buildIsoFromDateAndTime, formatCurrencyBRL, parseMoneyInput } from '../utils/format';
+import { buildIsoFromDateAndTime, formatCurrencyBRL, parseMoneyInput, getNextMatchDate } from '../utils/format';
 
 export const MatchList = () => {
   const { matches, addMatch, updateMatch } = useAppContext();
@@ -11,7 +11,11 @@ export const MatchList = () => {
   const [editTarget, setEditTarget] = useState<Match | null>(null);
 
   const sortedMatches = useMemo(
-    () => [...matches].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    () => [...matches].sort((a, b) => {
+      const dateA = new Date(getNextMatchDate(a.date, a.isFixed)).getTime();
+      const dateB = new Date(getNextMatchDate(b.date, b.isFixed)).getTime();
+      return dateA - dateB;
+    }),
     [matches],
   );
 
@@ -46,7 +50,7 @@ export const MatchList = () => {
       <div className="matches-grid" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         {sortedMatches.map((match) => {
           const confirmedCount = match.players.filter(p => p.attendance === 'Confirmado').length;
-          const matchDate = new Date(match.date);
+          const matchDate = new Date(getNextMatchDate(match.date, match.isFixed));
           const dayNum = matchDate.toLocaleDateString('pt-BR', { day: '2-digit' });
           const monthAbbr = matchDate.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
           const weekday = matchDate.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');

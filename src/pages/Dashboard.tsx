@@ -1,11 +1,20 @@
+import { useMemo } from 'react';
 import { useAppContext } from '../context/useAppContext';
 import { Users, Calendar, Trophy, Activity } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { getNextMatchDate } from '../utils/format';
 
 export const Dashboard = () => {
   const { matches, users, currentUser } = useAppContext();
 
-
+  const nextMatch = useMemo(() => {
+    if (matches.length === 0) return null;
+    const now = new Date();
+    return [...matches]
+      .map(m => ({ ...m, dynamicDate: getNextMatchDate(m.date, m.isFixed) }))
+      .filter(m => new Date(m.dynamicDate) >= now)
+      .sort((a, b) => new Date(a.dynamicDate).getTime() - new Date(b.dynamicDate).getTime())[0];
+  }, [matches]);
 
   const exportData = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ users, matches }));
@@ -18,34 +27,34 @@ export const Dashboard = () => {
   };
 
   return (
-    <div className="dashboard-container" style={{ animation: 'fadeIn 0.5s ease-out' }}>
-      <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+    <div className="dashboard-container" style={{ animation: 'fadeIn 0.5s ease-out', paddingBottom: '2rem' }}>
+      <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2.5rem' }}>
         <div>
-          <h1 className="text-gradient">Resumo da Rodada</h1>
-          <p className="subtitle" style={{ margin: 0 }}>Seja Bem-vindo, {currentUser?.name}</p>
+          <h1 className="text-gradient" style={{ fontSize: '2.5rem', fontWeight: 800 }}>Resumo da Rodada</h1>
+          <p className="subtitle" style={{ margin: 0, color: 'var(--text-muted)', fontSize: '1.1rem' }}>Seja Bem-vindo, <strong>{currentUser?.name}</strong></p>
         </div>
-        <button className="btn-primary" onClick={exportData} style={{ fontSize: '0.9rem', padding: '0.5rem 1rem' }}>Exportar</button>
+        <button className="btn-outline" onClick={exportData} style={{ fontSize: '0.85rem', padding: '0.6rem 1.2rem', backdropFilter: 'blur(5px)' }}>Exportar Dados</button>
       </header>
 
-      <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+      <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1.2rem', marginBottom: '2.5rem' }}>
         <StatCard title="Jogadores" value={users.length.toString()} icon={<Users />} to="/players" />
-        <StatCard title="Estatísticas" value="Jogadores" icon={<Trophy />} to="/rankings" />
-        <StatCard title="Histórico da Pelada" value={`${matches.length} Jogos`} icon={<Calendar />} to="/matches" />
-        <StatCard title="Finanças" value="Controle" icon={<Activity />} to="/finance" highlight />
+        <StatCard title="Rankings" value="Geral" icon={<Trophy />} to="/rankings" highlight />
+        <StatCard title="Peladas" value={`${matches.length} Jogos`} icon={<Calendar />} to="/matches" />
+        <StatCard title="Finanças" value="Fluxo" icon={<Activity />} to="/finance" />
       </div>
 
-      <section className="glass-panel" style={{ padding: '1.5rem' }}>
-        <h2 style={{ marginBottom: '1rem' }}>Sua Próxima Pelada</h2>
-        {matches.length > 0 ? (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <section className="glass-panel" style={{ padding: '1.8rem', borderLeft: '5px solid var(--color-accent)' }}>
+        <h2 style={{ marginBottom: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>📅 Sua Próxima Pelada</h2>
+        {nextMatch ? (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
             <div>
-              <h3>{matches[0].name}</h3>
-              <p className="text-muted">{new Date(matches[0].date).toLocaleDateString()}</p>
+              <h3 style={{ margin: '0 0 0.3rem 0', fontSize: '1.4rem' }}>{nextMatch.name}</h3>
+              <p className="text-muted" style={{ margin: 0 }}>{new Date(nextMatch.dynamicDate).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
             </div>
-            <Link to={`/matches/${matches[0].id}`} className="btn-primary">Ver Detalhes</Link>
+            <Link to={`/matches/${nextMatch.id}`} className="btn-primary">Ver Detalhes</Link>
           </div>
         ) : (
-          <p className="text-muted">Nenhuma Pelada agendada.</p>
+          <p className="text-muted" style={{ margin: 0 }}>Nenhuma Pelada agendada.</p>
         )}
       </section>
     </div>

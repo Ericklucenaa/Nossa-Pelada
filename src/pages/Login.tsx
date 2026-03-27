@@ -1,11 +1,22 @@
 import { useState } from 'react';
 import { useAppContext } from '../context/useAppContext';
-import { Loader } from 'lucide-react';
+import { Loader, Eye, EyeOff, Mail, Lock, AlertCircle } from 'lucide-react';
 
-export const Login = ({ setMode }: { setMode: (m: 'login' | 'register') => void }) => {
-  const { loginWithGoogle, toggleTheme } = useAppContext();
+const validateEmail = (email: string) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+export const Login = ({ setMode }: { setMode: (m: 'login' | 'register' | 'forgot') => void }) => {
+  const { loginWithGoogle, loginWithEmail, toggleTheme } = useAppContext();
   const [loading, setLoading] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
   const [error, setError] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  const emailError = touched.email && !validateEmail(email) ? (email ? 'E-mail inválido.' : 'E-mail é obrigatório.') : '';
+  const passwordError = touched.password && !password ? 'Senha é obrigatória.' : '';
 
   const handleGoogleLogin = async () => {
     setLoading(true);
@@ -21,6 +32,31 @@ export const Login = ({ setMode }: { setMode: (m: 'login' | 'register') => void 
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setTouched({ email: true, password: true });
+    if (!validateEmail(email) || !password) return;
+
+    setEmailLoading(true);
+    setError('');
+    try {
+      await loginWithEmail(email.trim(), password);
+    } catch (err: unknown) {
+      const fbErr = err as { code?: string };
+      if (fbErr.code === 'auth/user-not-found' || fbErr.code === 'auth/wrong-password' || fbErr.code === 'auth/invalid-credential') {
+        setError('E-mail ou senha incorretos. Verifique seus dados.');
+      } else if (fbErr.code === 'auth/too-many-requests') {
+        setError('Muitas tentativas. Aguarde alguns minutos ou redefina sua senha.');
+      } else if (fbErr.code === 'auth/user-disabled') {
+        setError('Esta conta foi desativada. Entre em contato com o administrador.');
+      } else {
+        setError('Erro ao fazer login. Tente novamente.');
+      }
+    } finally {
+      setEmailLoading(false);
     }
   };
 
@@ -46,13 +82,13 @@ export const Login = ({ setMode }: { setMode: (m: 'login' | 'register') => void 
 
       {/* Card */}
       <div style={{
-        flex: 1, display: 'flex', flexDirection: 'column', padding: '2.5rem 2rem',
+        flex: 1, display: 'flex', flexDirection: 'column', padding: '2.5rem 1.5rem',
         background: 'var(--color-surface)',
         borderTopLeftRadius: '30px', borderTopRightRadius: '30px',
         boxShadow: '0 -4px 20px rgba(0,0,0,0.07)'
       }}>
         <h2 style={{ marginBottom: '0.5rem', fontSize: '1.6rem', fontWeight: 700 }}>Seja Bem-vindo</h2>
-        <p className="text-muted" style={{ marginBottom: '2rem', fontSize: '0.9rem' }}>
+        <p className="text-muted" style={{ marginBottom: '1.5rem', fontSize: '0.9rem' }}>
           Acesse sua conta para continuar
         </p>
 
@@ -60,17 +96,103 @@ export const Login = ({ setMode }: { setMode: (m: 'login' | 'register') => void 
           <div style={{
             background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
             color: '#ef4444', borderRadius: 'var(--radius-md)', padding: '0.75rem 1rem',
-            marginBottom: '1.5rem', fontSize: '0.9rem'
+            marginBottom: '1.5rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem'
           }}>
-            {error}
+            <AlertCircle size={16} /> {error}
           </div>
         )}
+
+        {/* Email/Password Form */}
+        <form onSubmit={handleEmailLogin} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1rem' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>E-mail</label>
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', display: 'flex' }}>
+                <Mail size={16} />
+              </span>
+              <input
+                id="login-email"
+                className={`input-base${emailError ? ' input-error' : ''}`}
+                type="email"
+                placeholder="seu@email.com"
+                value={email}
+                onChange={e => { setEmail(e.target.value); setError(''); }}
+                onBlur={() => setTouched(prev => ({ ...prev, email: true }))}
+                style={{ paddingLeft: '2.5rem' }}
+                autoComplete="email"
+              />
+            </div>
+            {emailError && (
+              <p style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <AlertCircle size={12} />{emailError}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Senha</label>
+              <span
+                style={{ color: 'var(--color-primary)', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 500 }}
+                onClick={() => setMode('forgot')}
+              >
+                Esqueceu a senha?
+              </span>
+            </div>
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', display: 'flex' }}>
+                <Lock size={16} />
+              </span>
+              <input
+                id="login-password"
+                className={`input-base${passwordError ? ' input-error' : ''}`}
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Sua senha"
+                value={password}
+                onChange={e => { setPassword(e.target.value); setError(''); }}
+                onBlur={() => setTouched(prev => ({ ...prev, password: true }))}
+                style={{ paddingLeft: '2.5rem', paddingRight: '3rem' }}
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(v => !v)}
+                style={{ position: 'absolute', right: '0.85rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', padding: 0 }}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+            {passwordError && (
+              <p style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <AlertCircle size={12} />{passwordError}
+              </p>
+            )}
+          </div>
+
+          <button
+            id="btn-email-login"
+            type="submit"
+            className="btn-primary"
+            disabled={emailLoading || loading}
+            style={{ width: '100%', justifyContent: 'center', opacity: emailLoading ? 0.7 : 1 }}
+          >
+            {emailLoading ? <Loader size={18} className="spin" /> : null}
+            {emailLoading ? 'Entrando...' : 'Entrar'}
+          </button>
+        </form>
+
+        {/* Divider */}
+        <div style={{ display: 'flex', alignItems: 'center', margin: '0.5rem 0 1rem', color: 'var(--text-muted)' }}>
+          <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }}></div>
+          <span style={{ padding: '0 1rem', fontSize: '0.8rem' }}>ou</span>
+          <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }}></div>
+        </div>
 
         {/* Google Login Button */}
         <button
           id="btn-google-login"
           onClick={handleGoogleLogin}
-          disabled={loading}
+          disabled={loading || emailLoading}
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem',
             background: loading ? 'var(--color-surface-light)' : '#fff',
@@ -79,12 +201,12 @@ export const Login = ({ setMode }: { setMode: (m: 'login' | 'register') => void 
             padding: '1rem 1.5rem',
             borderRadius: 'var(--radius-md)',
             fontWeight: 600, fontSize: '1rem',
-            cursor: loading ? 'not-allowed' : 'pointer',
+            cursor: loading || emailLoading ? 'not-allowed' : 'pointer',
             transition: 'box-shadow 0.2s, transform 0.1s',
             boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
             width: '100%',
           }}
-          onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'; }}
+          onMouseEnter={e => { if (!loading && !emailLoading) (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'; }}
           onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)'; }}
         >
           {loading ? (
@@ -100,22 +222,15 @@ export const Login = ({ setMode }: { setMode: (m: 'login' | 'register') => void 
           {loading ? 'Entrando...' : 'Continuar com Google'}
         </button>
 
-        {/* Divider */}
-        <div style={{ display: 'flex', alignItems: 'center', margin: '1.5rem 0', color: 'var(--text-muted)' }}>
-          <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }}></div>
-          <span style={{ padding: '0 1rem', fontSize: '0.8rem' }}>ou</span>
-          <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }}></div>
-        </div>
-
         {/* Register Link */}
-        <div style={{ textAlign: 'center' }}>
-          <p className="text-muted" style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+        <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
+          <p className="text-muted" style={{ fontSize: '0.9rem' }}>
             Novo por aqui?{' '}
             <span
               style={{ color: 'var(--color-primary)', fontWeight: 600, cursor: 'pointer' }}
               onClick={() => setMode('register')}
             >
-              Criar conta manual
+              Criar conta
             </span>
           </p>
         </div>
@@ -131,6 +246,8 @@ export const Login = ({ setMode }: { setMode: (m: 'login' | 'register') => void 
         @keyframes spin { to { transform: rotate(360deg); } }
         .spin { animation: spin 1s linear infinite; }
         #btn-google-login:active:not(:disabled) { transform: scale(0.98); }
+        #btn-email-login:active:not(:disabled) { transform: scale(0.98); }
+        .input-error { border-color: #ef4444 !important; box-shadow: 0 0 0 2px rgba(239,68,68,0.15) !important; }
       `}</style>
     </div>
   );

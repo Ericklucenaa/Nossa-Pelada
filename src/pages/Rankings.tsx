@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAppContext } from '../context/useAppContext';
-import { Trophy, Target, Activity, Shield } from 'lucide-react';
+import { Trophy, Target } from 'lucide-react';
 
 export const Rankings = () => {
   const { users, matches } = useAppContext();
@@ -37,129 +37,176 @@ export const Rankings = () => {
     ...calculateStats(u.id, u.goals, u.assists)
   }));
 
-  const topScorers = [...usersWithStats].sort((a,b) => b.goals - a.goals || b.overall - a.overall).slice(0, 5);
-  const topAssists = [...usersWithStats].sort((a,b) => b.assists - a.assists || b.overall - a.overall).slice(0, 5);
-  const topGoleiros = [...usersWithStats].filter(u => u.position === 'Goleiro').sort((a,b) => b.overall - a.overall).slice(0, 5);
-  const topOverall = [...usersWithStats].sort((a,b) => b.overall - a.overall).slice(0, 5);
+  const topScorers = [...usersWithStats].sort((a,b) => b.goals - a.goals || a.name.localeCompare(b.name)).slice(0, 5);
+  const topAssists = [...usersWithStats].sort((a,b) => b.assists - a.assists || a.name.localeCompare(b.name)).slice(0, 5);
+
 
   return (
-    <div className="rankings-container" style={{ animation: 'fadeIn 0.5s ease-out' }}>
+    <div className="rankings-container" style={{ animation: 'fadeIn 0.5s ease-out', paddingBottom: '3.5rem' }}>
       <header className="page-header" style={{ marginBottom: '2rem' }}>
-        <h1 className="text-gradient">Rankings</h1>
-        <p className="subtitle text-muted" style={{ marginBottom: '1rem' }}>A nata da nossa pelada.</p>
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button 
-            className={`btn-primary ${period !== 'Semanal' ? 'btn-outline' : ''}`} 
-            style={{ padding: '0.5rem 1rem', background: period === 'Semanal' ? 'var(--color-primary)' : 'transparent', border: period === 'Semanal' ? 'none' : '1px solid var(--color-primary)', color: period === 'Semanal' ? 'black' : 'var(--color-primary)' }}
-            onClick={() => setPeriod('Semanal')}
-          >
-            Semanal
-          </button>
-          <button 
-            className={`btn-primary ${period !== 'Anual' ? 'btn-outline' : ''}`} 
-            style={{ padding: '0.5rem 1rem', background: period === 'Anual' ? 'var(--color-primary)' : 'transparent', border: period === 'Anual' ? 'none' : '1px solid var(--color-primary)', color: period === 'Anual' ? 'black' : 'var(--color-primary)' }}
-            onClick={() => setPeriod('Anual')}
-          >
-            Anual
-          </button>
-          <button 
-            className={`btn-primary ${period !== 'Geral' ? 'btn-outline' : ''}`} 
-             style={{ padding: '0.5rem 1rem', background: period === 'Geral' ? 'var(--color-primary)' : 'transparent', border: period === 'Geral' ? 'none' : '1px solid var(--color-primary)', color: period === 'Geral' ? 'black' : 'var(--color-primary)' }}
-            onClick={() => setPeriod('Geral')}
-          >
-            Geral
-          </button>
+        <h1 className="text-gradient" style={{ fontWeight: 800, fontSize: '2.4rem' }}>Rankings</h1>
+        <p className="subtitle text-muted" style={{ marginBottom: '1.2rem', fontSize: '1rem' }}>Desempenho da temporada.</p>
+        
+        {/* Period Selector - Premium Floating Style */}
+        <div style={{ 
+          display: 'flex', 
+          width: '100%',
+          overflowX: 'auto',
+          paddingBottom: '0.8rem',
+          scrollbarWidth: 'none',
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            background: 'var(--color-surface)', 
+            padding: '4px', 
+            borderRadius: 'var(--radius-lg)', 
+            gap: '4px',
+            boxShadow: 'var(--shadow-surface)',
+            border: '1px solid var(--border-color)',
+            minWidth: 'fit-content'
+          }}>
+            {(['Semanal', 'Anual', 'Geral'] as const).map((p) => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                style={{
+                  padding: '8px 20px',
+                  borderRadius: 'var(--radius-md)',
+                  border: 'none',
+                  background: period === p ? 'var(--color-primary)' : 'transparent',
+                  color: period === p ? '#000' : 'var(--text-muted)',
+                  fontWeight: 800,
+                  fontSize: '0.75rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '2rem' }}>
+      <div className="rankings-grid">
         
         {/* Artilheiros */}
-        <div className="glass-panel" style={{ padding: '2rem', borderTop: '4px solid var(--color-primary)' }}>
-          <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-primary)' }}><Trophy /> Artilheiros</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {topScorers.map((u, i) => (
-              <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <span style={{ fontSize: '1.5rem', fontWeight: 800, color: i === 0 ? 'var(--color-warning)' : 'var(--text-muted)' }}>{i + 1}</span>
-                  <div>
-                    <h4 style={{ margin: 0 }}>{u.name}</h4>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{u.position}</span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-primary)', lineHeight: 1 }}>{u.goals}</span>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Gols</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <RankingCard 
+          title="Artilheiros" 
+          icon={<Trophy size={22} />} 
+          color="var(--color-primary)" 
+          data={topScorers} 
+          valKey="goals" 
+          label="Gols" 
+        />
 
         {/* Garçons */}
-        <div className="glass-panel" style={{ padding: '2rem', borderTop: '4px solid var(--color-accent)' }}>
-          <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-accent)' }}><Target /> Garçons</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {topAssists.map((u, i) => (
-              <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <span style={{ fontSize: '1.5rem', fontWeight: 800, color: i === 0 ? 'var(--color-warning)' : 'var(--text-muted)' }}>{i + 1}</span>
-                  <div>
-                    <h4 style={{ margin: 0 }}>{u.name}</h4>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-accent)', lineHeight: 1 }}>{u.assists}</span>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Assists</span>
-                </div>
-              </div>
-            ))}
-          </div>
+        <RankingCard 
+          title="Garçons" 
+          icon={<Target size={22} />} 
+          color="var(--color-accent)" 
+          data={topAssists} 
+          valKey="assists" 
+          label="Assists" 
+        />
+
+        
+      </div>
+    </div>
+  );
+};
+
+const RankingCard = ({ title, icon, color, data, valKey, label }: { title: string, icon: React.ReactNode, color: string, data: any[], valKey: string, label: string }) => (
+  <div className="glass-panel fadeIn" style={{ borderTop: `4px solid ${color}`, padding: '1.5rem', borderRadius: 'var(--radius-lg)', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ position: 'absolute', top: 0, right: 0, width: '100px', height: '100px', background: `radial-gradient(circle at top right, ${color}11, transparent 70%)`, pointerEvents: 'none' }}></div>
+    
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1.8rem' }}>
+      <div style={{ background: `${color}15`, color: color, padding: '10px', borderRadius: '12px', display: 'flex' }}>
+        {icon}
+      </div>
+      <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, color: 'var(--text-main)', letterSpacing: '-0.5px' }}>{title}</h2>
+    </div>
+
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+      {data.map((u, i) => (
+        <RankingItem 
+          key={u.id} 
+          rank={i + 1} 
+          name={u.name} 
+          photoUrl={u.photoUrl} 
+          value={u[valKey]} 
+          label={label} 
+          color={color} 
+        />
+      ))}
+      {data.length === 0 && (
+        <p className="text-muted" style={{ textAlign: 'center', padding: '1rem', fontSize: '0.9rem' }}>Nenhum dado registrado.</p>
+      )}
+    </div>
+  </div>
+);
+
+const RankingItem = ({ rank, name, photoUrl, value, label, color }: { rank: number, name: string, photoUrl?: string, value: number, label: string, color: string }) => {
+  const isFirst = rank === 1;
+  const isSecond = rank === 2;
+  const isThird = rank === 3;
+  
+  const getRankColor = () => {
+    if (isFirst) return '#FFD700'; // Gold
+    if (isSecond) return '#C0C0C0'; // Silver
+    if (isThird) return '#CD7F32'; // Bronze
+    return 'var(--text-muted)';
+  };
+
+  return (
+    <div style={{ 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'space-between', 
+      padding: '12px', 
+      background: isFirst ? `${color}08` : 'transparent',
+      borderRadius: 'var(--radius-md)',
+      border: isFirst ? `1px solid ${color}22` : 'none'
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', minWidth: 0, flex: 1 }}>
+        {/* Rank Number or Medal */}
+        <div style={{ 
+          minWidth: '28px', 
+          height: '28px', 
+          borderRadius: '50%', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          fontWeight: 900,
+          background: isFirst || isSecond || isThird ? getRankColor() : 'rgba(255,255,255,0.05)',
+          color: isFirst || isSecond || isThird ? '#000' : 'var(--text-muted)',
+          fontSize: '0.85rem'
+        }}>
+          {rank}
         </div>
 
-        {/* Melhores Goleiros */}
-        <div className="glass-panel" style={{ padding: '2rem', borderTop: '4px solid var(--color-secondary)' }}>
-          <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-secondary)' }}><Shield /> Melhores Goleiros</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {topGoleiros.map((u, i) => (
-              <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <span style={{ fontSize: '1.5rem', fontWeight: 800, color: i === 0 ? 'var(--color-warning)' : 'var(--text-muted)' }}>{i + 1}</span>
-                  <div>
-                    <h4 style={{ margin: 0 }}>{u.name}</h4>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-secondary)', lineHeight: 1 }}>{u.overall}</span>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>OVR</span>
-                </div>
-              </div>
-            ))}
-            {topGoleiros.length === 0 && <p className="text-muted" style={{ textAlign: 'center' }}>Nenhum goleiro registrado.</p>}
-          </div>
+        {/* Avatar */}
+        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--color-surface-light)', flexShrink: 0, overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+          {photoUrl ? (
+            <img src={photoUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 700 }}>
+              {name.substring(0, 2).toUpperCase()}
+            </div>
+          )}
         </div>
 
-        {/* Melhores OVR */}
-        <div className="glass-panel" style={{ padding: '2rem', borderTop: '4px solid var(--color-warning)' }}>
-          <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-warning)' }}><Activity /> Melhores Jogadores</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {topOverall.map((u, i) => (
-              <div key={u.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <span style={{ fontSize: '1.5rem', fontWeight: 800, color: i === 0 ? 'var(--color-warning)' : 'var(--text-muted)' }}>{i + 1}</span>
-                  <div>
-                    <h4 style={{ margin: 0 }}>{u.name}</h4>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-warning)', lineHeight: 1 }}>{u.overall}</span>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>OVR</span>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: isFirst ? 800 : 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-main)' }}>{name}</h4>
         </div>
+      </div>
 
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginLeft: '0.5rem' }}>
+        <span style={{ fontSize: '1.4rem', fontWeight: 900, color: color, lineHeight: 1, textShadow: isFirst ? `0 0 10px ${color}33` : 'none' }}>{value}</span>
+        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>{label}</span>
       </div>
     </div>
   );

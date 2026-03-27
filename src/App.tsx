@@ -1,18 +1,18 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Home, Users, Calendar, DollarSign, Activity, LogOut, Sun, Moon, Settings } from 'lucide-react';
+import { Home, Users, Calendar, DollarSign, Activity, LogOut, Sun, Moon } from 'lucide-react';
 import { useAppContext } from './context/useAppContext';
 import './App.css';
 
 import { Dashboard } from './pages/Dashboard';
 import { MatchList } from './pages/MatchList';
 import { MatchDetail } from './pages/MatchDetail';
-import { Profile } from './pages/Profile';
 import { Finance } from './pages/Finance';
 import { Courts } from './pages/Courts';
 import { Rankings } from './pages/Rankings';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { Players } from './pages/Players';
+import { ForgotPassword } from './pages/ForgotPassword';
 import { useState } from 'react';
 
 function TopBar() {
@@ -24,9 +24,6 @@ function TopBar() {
         <span className="text-gradient brand-title" style={{ textTransform: 'uppercase' }}>Nossa Pelada</span>
       </div>
       <div style={{ display: 'flex', gap: '0.5rem' }}>
-        <Link to="/profile" className="theme-toggle" style={{ color: 'var(--color-accent)' }}>
-          <Settings size={20} />
-        </Link>
         <button className="theme-toggle" onClick={toggleTheme}>
           {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
         </button>
@@ -66,7 +63,6 @@ function MainApp() {
           <Route path="/courts" element={<Courts />} />
           <Route path="/players" element={<Players />} />
           <Route path="/finance" element={<Finance />} />
-          <Route path="/profile" element={<Profile />} />
         </Routes>
       </main>
       <BottomNav />
@@ -76,7 +72,7 @@ function MainApp() {
 
 function App() {
   const { currentUser, authLoading } = useAppContext();
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot'>('login');
 
   return (
     <Router>
@@ -98,7 +94,9 @@ function App() {
             <style>{`@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.7;transform:scale(0.92)} }`}</style>
           </div>
         ) : !currentUser ? (
-          authMode === 'login' ? <Login setMode={setAuthMode} /> : <Register setMode={setAuthMode} />
+          authMode === 'login' ? <Login setMode={setAuthMode} /> :
+          authMode === 'register' ? <Register setMode={setAuthMode} /> :
+          <ForgotPassword setMode={setAuthMode} />
         ) : (
           <MainApp />
         )}
