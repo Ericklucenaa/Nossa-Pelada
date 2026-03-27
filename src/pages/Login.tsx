@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { useAppContext } from '../context/useAppContext';
 import { Loader, Eye, EyeOff, Mail, Lock, AlertCircle } from 'lucide-react';
 
-const validateEmail = (email: string) =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
 
 export const Login = ({ setMode }: { setMode: (m: 'login' | 'register' | 'forgot') => void }) => {
   const { loginWithGoogle, loginWithEmail, toggleTheme } = useAppContext();
@@ -15,7 +14,7 @@ export const Login = ({ setMode }: { setMode: (m: 'login' | 'register' | 'forgot
   const [showPassword, setShowPassword] = useState(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
-  const emailError = touched.email && !validateEmail(email) ? (email ? 'E-mail inválido.' : 'E-mail é obrigatório.') : '';
+  const identifierError = touched.email && !email.trim() ? 'Usuário ou e-mail é obrigatório.' : '';
   const passwordError = touched.password && !password ? 'Senha é obrigatória.' : '';
 
   const handleGoogleLogin = async () => {
@@ -38,7 +37,7 @@ export const Login = ({ setMode }: { setMode: (m: 'login' | 'register' | 'forgot
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setTouched({ email: true, password: true });
-    if (!validateEmail(email) || !password) return;
+    if (!email.trim() || !password) return;
 
     setEmailLoading(true);
     setError('');
@@ -105,16 +104,16 @@ export const Login = ({ setMode }: { setMode: (m: 'login' | 'register' | 'forgot
         {/* Email/Password Form */}
         <form onSubmit={handleEmailLogin} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1rem' }}>
           <div>
-            <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>E-mail</label>
+            <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>Usuário ou E-mail</label>
             <div style={{ position: 'relative' }}>
               <span style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', display: 'flex' }}>
                 <Mail size={16} />
               </span>
               <input
                 id="login-email"
-                className={`input-base${emailError ? ' input-error' : ''}`}
-                type="email"
-                placeholder="seu@email.com"
+                className={`input-base${identifierError ? ' input-error' : ''}`}
+                type="text"
+                placeholder="Seu usuário ou e-mail"
                 value={email}
                 onChange={e => { setEmail(e.target.value); setError(''); }}
                 onBlur={() => setTouched(prev => ({ ...prev, email: true }))}
@@ -122,9 +121,9 @@ export const Login = ({ setMode }: { setMode: (m: 'login' | 'register' | 'forgot
                 autoComplete="email"
               />
             </div>
-            {emailError && (
+            {identifierError && (
               <p style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                <AlertCircle size={12} />{emailError}
+                <AlertCircle size={12} />{identifierError}
               </p>
             )}
           </div>

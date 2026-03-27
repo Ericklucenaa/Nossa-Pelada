@@ -72,8 +72,11 @@ export const Register = ({ setMode }: { setMode: (m: 'login' | 'register' | 'for
         setErrors({ email: 'E-mail inválido.' });
       } else if (fbErr.code === 'auth/weak-password') {
         setErrors({ password: 'Senha muito fraca.' });
+      } else if (fbErr.code === 'auth/operation-not-allowed') {
+        setErrors({ general: 'O cadastro via e-mail e senha está desativado no Console do Firebase. Ative-o para continuar.' });
       } else {
-        setErrors({ general: 'Erro ao criar conta. Tente novamente.' });
+        const errorMsg = (err as { message?: string }).message || 'Erro ao criar conta. Tente novamente.';
+        setErrors({ general: errorMsg });
       }
     } finally {
       setLoading(false);
@@ -112,7 +115,7 @@ export const Register = ({ setMode }: { setMode: (m: 'login' | 'register' | 'for
       {/* Card */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '2rem 1.5rem', background: 'var(--color-surface)', borderTopLeftRadius: '30px', borderTopRightRadius: '30px', boxShadow: '0 -4px 20px rgba(0,0,0,0.07)' }}>
         <h2 style={{ marginBottom: '0.5rem', fontSize: '1.5rem', fontWeight: 700 }}>Criar Conta</h2>
-        <p className="text-muted" style={{ marginBottom: '1.5rem', fontSize: '0.9rem' }}>Preencha os campos abaixo</p>
+        <p className="text-muted" style={{ marginBottom: '1.5rem', fontSize: '0.9rem' }}>Preencha os campos para acesso</p>
 
         {errors.general && (
           <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', borderRadius: 'var(--radius-md)', padding: '0.75rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -145,7 +148,7 @@ export const Register = ({ setMode }: { setMode: (m: 'login' | 'register' | 'for
 
           {/* Username */}
           <div>
-            <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>Nome de Usuário / Apelido</label>
+            <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>Nome de Usuário</label>
             <div style={{ position: 'relative' }}>
               <span style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', display: 'flex' }}>
                 <User size={16} />
@@ -154,7 +157,7 @@ export const Register = ({ setMode }: { setMode: (m: 'login' | 'register' | 'for
                 id="reg-username"
                 className={`input-base${fieldError('username') ? ' input-error' : ''}`}
                 type="text"
-                placeholder="Como te chamam na pelada?"
+                placeholder="Será seu login (Ex: erick_10)"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 onBlur={() => handleBlur('username')}

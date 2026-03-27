@@ -2,7 +2,8 @@ import { useEffect, useState, useRef } from 'react';
 import type { ReactNode } from 'react';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { signOut, signInWithPopup, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, updateProfile } from 'firebase/auth';
-import { auth, googleProvider } from '../firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { auth, googleProvider, db } from '../firebase';
 import type { Court, Match, MatchPlayer, User } from '../types';
 import { AppContext } from './appContext';
 
@@ -508,14 +509,42 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     loginWithFirebaseUser(result.user);
   };
 
-  const loginWithEmail = async (email: string, password: string): Promise<void> => {
+  const loginWithEmail = async (identifier: string, password: string): Promise<void> => {
+    let email = identifier.trim();
+    
+    // Check if it's a username (no @)
+    if (!email.includes('@')) {
+      const docRef = doc(db, 'usernames', email.toLowerCase());
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        email = docSnap.data().email;
+      } else {
+        throw new Error('Usuário não encontrado.');
+      }
+    }
+
     await signInWithEmailAndPassword(auth, email, password);
   };
 
-  const registerWithEmail = async (email: string, password: string, displayName: string): Promise<void> => {
+  const registerWithEmail = async (email: string, password: string, username: string): Promise<void> => {
+    const trimmedUsername = username.trim().toLowerCase();
+    
+    // 1. Verify if username exists
+    const docRef = doc(db, 'usernames', trimmedUsername);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      throw new Error('Este nome de usuário já está em uso.');
+    }
+
+    // 2. Create Auth User
     const result = await createUserWithEmailAndPassword(auth, email, password);
-    await updateProfile(result.user, { displayName });
-    loginWithFirebaseUser({ ...result.user, displayName });
+    
+    // 3. Save mapping to Firestore
+    await setDoc(docRef, { email: email.trim(), userId: result.user.uid });
+    
+    // 4. Update Profile
+    await updateProfile(result.user, { displayName: username.trim() });
+    loginWithFirebaseUser({ ...result.user, displayName: username.trim() });
   };
 
   const resetPassword = async (email: string): Promise<void> => {
