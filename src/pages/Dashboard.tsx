@@ -16,15 +16,7 @@ export const Dashboard = () => {
       .sort((a, b) => new Date(a.dynamicDate).getTime() - new Date(b.dynamicDate).getTime())[0];
   }, [matches]);
 
-  const exportData = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ users, matches }));
-    const downloadAnchorNode = document.createElement('a');
-    downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", "nossa_pelada_export.json");
-    document.body.appendChild(downloadAnchorNode);
-    downloadAnchorNode.click();
-    downloadAnchorNode.remove();
-  };
+
 
   return (
     <div className="dashboard-container" style={{ animation: 'fadeIn 0.5s ease-out', paddingBottom: '2rem' }}>
@@ -33,7 +25,6 @@ export const Dashboard = () => {
           <h1 className="text-gradient" style={{ fontSize: '2.5rem', fontWeight: 800 }}>Resumo da Rodada</h1>
           <p className="subtitle" style={{ margin: 0, color: 'var(--text-muted)', fontSize: '1.1rem' }}>Seja Bem-vindo, <strong>{currentUser?.name}</strong></p>
         </div>
-        <button className="btn-outline" onClick={exportData} style={{ fontSize: '0.85rem', padding: '0.6rem 1.2rem', backdropFilter: 'blur(5px)' }}>Exportar Dados</button>
       </header>
 
       <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1.2rem', marginBottom: '2.5rem' }}>
