@@ -52,7 +52,8 @@ export const Login = ({ setMode }: { setMode: (m: 'login' | 'register' | 'forgot
       } else if (fbErr.code === 'auth/user-disabled') {
         setError('Esta conta foi desativada. Entre em contato com o administrador.');
       } else {
-        setError('Erro ao fazer login. Tente novamente.');
+        const errorMsg = (err as { message?: string }).message || 'Erro ao fazer login. Tente novamente.';
+        setError(errorMsg);
       }
     } finally {
       setEmailLoading(false);
