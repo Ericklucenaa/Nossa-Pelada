@@ -72,52 +72,66 @@ export const MatchList = () => {
                 <span style={{ fontSize: '1.8rem', fontWeight: 900, color: '#0a0a0a', lineHeight: 1 }}>{dayNum}</span>
                 <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(0,0,0,0.7)', textTransform: 'uppercase' }}>{monthAbbr}</span>
               </div>
+              {/* Main content + Actions container */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: window.innerWidth < 640 ? 'column' : 'row', minWidth: 0 }}>
+                {/* Info Section */}
+                <div style={{ flex: 1, padding: '1rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: 0 }}>
+                  {/* Title row */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{match.name}</h3>
+                    {match.isFixed && <span style={{ fontSize: '0.65rem', background: 'var(--color-primary)', color: '#000', padding: '2px 7px', borderRadius: '20px', fontWeight: 700, textTransform: 'uppercase', flexShrink: 0 }}>Fixa</span>}
+                  </div>
 
-              {/* Main content */}
-              <div style={{ flex: 1, padding: '1rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: 0 }}>
-                {/* Title row */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)' }}>{match.name}</h3>
-                  {match.isFixed && <span style={{ fontSize: '0.65rem', background: 'var(--color-primary)', color: '#000', padding: '2px 7px', borderRadius: '20px', fontWeight: 700, textTransform: 'uppercase', flexShrink: 0 }}>Fixa</span>}
-                </div>
-
-                {/* Info chips */}
-                <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: '6px' }}>
-                    🕐 {startTime}{endTime ? ` – ${endTime}` : ''}
-                  </span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', color: confirmedCount > 0 ? 'var(--color-primary)' : 'var(--text-muted)', background: confirmedCount > 0 ? 'rgba(69,242,72,0.08)' : 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: '6px', fontWeight: confirmedCount > 0 ? 600 : 400 }}>
-                    <Users size={13} /> {confirmedCount}/{match.players.length} confirmados
-                  </span>
-                  {match.courtId && (
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}>
-                      📍 {getCourtLabel(match.courtId)}
+                  {/* Info chips */}
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: '6px' }}>
+                      🕐 {startTime}{endTime ? ` – ${endTime}` : ''}
                     </span>
-                  )}
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem', color: confirmedCount > 0 ? 'var(--color-primary)' : 'var(--text-muted)', background: confirmedCount > 0 ? 'rgba(69,242,72,0.08)' : 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: '6px', fontWeight: confirmedCount > 0 ? 600 : 400 }}>
+                      <Users size={12} /> {confirmedCount}/{match.players.length}
+                    </span>
+                    {match.courtId && (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px' }}>
+                        📍 {getCourtLabel(match.courtId)}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Financial row */}
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--color-accent)', background: 'rgba(102,252,241,0.08)', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
+                      Avulso {formatCurrencyBRL(match.valorAvulso ?? 0)}
+                    </span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--color-warning)', background: 'rgba(255,170,0,0.08)', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
+                      Mensalista {formatCurrencyBRL(match.valorMensal ?? 0)}
+                    </span>
+                  </div>
                 </div>
 
-                {/* Financial row */}
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--color-accent)', background: 'rgba(102,252,241,0.08)', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
-                    Avulso {formatCurrencyBRL(match.valorAvulso ?? 0)}
-                  </span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--color-warning)', background: 'rgba(255,170,0,0.08)', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
-                    Mensalista {formatCurrencyBRL(match.valorMensal ?? 0)}
-                  </span>
+                {/* Action buttons */}
+                <div 
+                  style={{ 
+                    display: 'flex', 
+                    flexDirection: window.innerWidth < 640 ? 'row' : 'column', 
+                    gap: '0.4rem', 
+                    padding: '0.75rem 1.25rem', 
+                    justifyContent: 'center', 
+                    flexShrink: 0,
+                    borderTop: window.innerWidth < 640 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                    background: window.innerWidth < 640 ? 'rgba(0,0,0,0.1)' : 'transparent'
+                  }} 
+                  onClick={e => e.preventDefault()}
+                >
+                  <Link to={`/matches/${match.id}`} className="btn-outline" style={{ flex: 1, fontSize: '0.7rem', textAlign: 'center', textDecoration: 'none', padding: '0.4rem 0.6rem', whiteSpace: 'nowrap' }}>
+                    Acessar
+                  </Link>
+                  <Link to={`/matches/${match.id}#jogo`} className="btn-primary" style={{ flex: 1, fontSize: '0.7rem', textAlign: 'center', textDecoration: 'none', padding: '0.4rem 0.6rem', whiteSpace: 'nowrap', boxShadow: 'none' }} onClick={e => e.stopPropagation()}>
+                    Súmula
+                  </Link>
+                  <button className="btn-outline" style={{ flex: 1, fontSize: '0.7rem', borderColor: 'var(--color-accent)', color: 'var(--color-accent)', padding: '0.4rem 0.6rem', whiteSpace: 'nowrap' }} onClick={(e) => { e.preventDefault(); handleEditClick(match); }}>
+                    Editar
+                  </button>
                 </div>
-              </div>
-
-              {/* Action buttons — vertical stack on right */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', padding: '1rem', justifyContent: 'center', flexShrink: 0 }} onClick={e => e.preventDefault()}>
-                <Link to={`/matches/${match.id}`} className="btn-outline" style={{ fontSize: '0.75rem', textAlign: 'center', textDecoration: 'none', padding: '0.35rem 0.75rem', whiteSpace: 'nowrap' }}>
-                  Acessar
-                </Link>
-                <Link to={`/matches/${match.id}#jogo`} className="btn-primary" style={{ fontSize: '0.75rem', textAlign: 'center', textDecoration: 'none', padding: '0.35rem 0.75rem', whiteSpace: 'nowrap' }} onClick={e => e.stopPropagation()}>
-                  Estatísticas
-                </Link>
-                <button className="btn-outline" style={{ fontSize: '0.75rem', borderColor: 'var(--color-accent)', color: 'var(--color-accent)', padding: '0.35rem 0.75rem', whiteSpace: 'nowrap' }} onClick={(e) => { e.preventDefault(); handleEditClick(match); }}>
-                  Editar
-                </button>
               </div>
             </Link>
           );
@@ -126,8 +140,8 @@ export const MatchList = () => {
 
 
       {showModal && (
-        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="glass-panel p-6" style={{ padding: '2rem', width: '100%', maxWidth: '440px' }}>
+        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 1000, overflowY: 'auto', padding: '2rem 1rem' }}>
+          <div className="glass-panel" style={{ padding: '2rem', width: '100%', maxWidth: '440px', margin: 'auto' }}>
             <h2 style={{ marginBottom: '1.5rem' }}>{editTarget ? 'Editar Pelada' : 'Criar Nova Pelada'}</h2>
             <form onSubmit={(event) => {
               event.preventDefault();
