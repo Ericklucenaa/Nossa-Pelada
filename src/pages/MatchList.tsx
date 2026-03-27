@@ -126,7 +126,7 @@ export const MatchList = () => {
                     Acessar
                   </Link>
                   <Link to={`/matches/${match.id}#jogo`} className="btn-primary" style={{ flex: 1, fontSize: '0.7rem', textAlign: 'center', textDecoration: 'none', padding: '0.4rem 0.6rem', whiteSpace: 'nowrap', boxShadow: 'none' }} onClick={e => e.stopPropagation()}>
-                    Súmula
+                    Estatísticas
                   </Link>
                   <button className="btn-outline" style={{ flex: 1, fontSize: '0.7rem', borderColor: 'var(--color-accent)', color: 'var(--color-accent)', padding: '0.4rem 0.6rem', whiteSpace: 'nowrap' }} onClick={(e) => { e.preventDefault(); handleEditClick(match); }}>
                     Editar
