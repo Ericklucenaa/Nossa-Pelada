@@ -12,6 +12,7 @@ export interface User {
   goals: number;
   assists: number;
   matchesPlayed: number;
+  overall: number;
 }
 
 export interface Court {

@@ -51,7 +51,7 @@ export const Players = () => {
                 )}
               </div>
               <div>
-                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>{u.name}</h3>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>{u.name} <span style={{fontSize: '0.8rem', color: 'var(--color-primary)', marginLeft: '0.5rem'}}>⭐ {u.overall || 50}</span></h3>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>{u.position}</span>
               </div>
             </div>
@@ -88,6 +88,7 @@ export const Players = () => {
                 position: formData.get('position') as 'Linha' | 'Goleiro',
                 subscriptionType: formData.get('subscriptionType') as 'Mensalista' | 'Avulso',
                 photoUrl: photoPreview,
+                overall: parseInt(formData.get('overall') as string) || 50,
               };
               if (editTarget) {
                  updateUser(editTarget.id, data);
@@ -142,6 +143,13 @@ export const Players = () => {
                      <option value="Mensalista">Mensalista</option>
                      <option value="Avulso">Avulso</option>
                   </select>
+                </div>
+              </div>
+              
+              <div style={{ marginBottom: '1.5rem', display: 'flex', gap: '1rem' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>Nível / Overall (0-100)</label>
+                  <input type="number" name="overall" min="0" max="100" className="input-base" defaultValue={editTarget?.overall || 50} required />
                 </div>
               </div>
               

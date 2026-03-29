@@ -1,6 +1,6 @@
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { useState } from 'react';
-import { Shield, ShieldAlert, BadgeDollarSign, CheckSquare, XSquare, Trash2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Shield, ShieldAlert, BadgeDollarSign, CheckSquare, XSquare, Trash2, Share2 } from 'lucide-react';
 import { useAppContext } from '../context/useAppContext';
 import type { MatchPlayer, PaymentStatus, User } from '../types';
 import { formatCurrencyBRL, getMonthKey } from '../utils/format';
@@ -16,14 +16,35 @@ const TEAM_NAMES = ['1', '2', '3', '4', '5', '6', '7', '8'] as const;
 export const MatchDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { matches, users, updateMatchPlayer, updateMatch, drawTeams, setMatchStats, swapPlayers, joinMatch, removeMatch } = useAppContext();
+  const { matches, users, updateMatchPlayer, updateMatch, drawTeams, setMatchStats, swapPlayers, joinMatch, removeMatch, currentUser } = useAppContext();
   const location = useLocation();
   const initialTab = (location.hash.replace('#', '') as MatchTab) || 'lista';
   const [activeTab, setActiveTab] = useState<MatchTab>((['lista','jogo','financeiro','times'] as MatchTab[]).includes(initialTab) ? initialTab : 'lista');
   const [swapModal, setSwapModal] = useState<{ active: boolean; idToSwap: string | null }>({ active: false, idToSwap: null });
   const [addPlayerModal, setAddPlayerModal] = useState(false);
+  const [drawOptions, setDrawOptions] = useState({ useMensalista: true, useOverall: true, useArrival: false });
 
   const match = matches.find((candidate) => candidate.id === id);
+
+  useEffect(() => {
+    if (!match) return;
+    const params = new URLSearchParams(location.search);
+    if (params.get('join') === 'true') {
+      if (currentUser) {
+        const isAlreadyIn = match.players.some(p => p.userId === currentUser.id);
+        if (!isAlreadyIn) {
+          joinMatch(match.id, currentUser.id);
+        }
+        navigate(location.pathname, { replace: true });
+      } else {
+        // If they are not logged in, we could redirect them to login with a redirect param. 
+        // But for now, just sending them to login since they need an account.
+        // Usually handled by App.tsx restricting access, but if this is public, it might crash without currentUser.
+        // Assuming user must be logged in to reach here.
+      }
+    }
+  }, [location.search, match, currentUser, joinMatch, navigate]);
+
   if (!match) return <div>Match not found</div>;
 
   const handleUpdateStatus = (playerId: string, status: MatchPlayer['attendance']) => {
@@ -96,6 +117,18 @@ export const MatchDetail = () => {
     }
   };
 
+  const handleShare = () => {
+    const link = `${window.location.origin}/match/${match.id}?join=true`;
+    const text = `⚽ *CONVOCAÇÃO: ${match.name.toUpperCase()}* ⚽\n\nFala galera! Clique no link abaixo para confirmar sua presença na pelada:\n\n👉 ${link}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const handleCopyToClipboard = () => {
+    const link = `${window.location.origin}/match/${match.id}?join=true`;
+    navigator.clipboard.writeText(link);
+    window.alert('Link copiado para a área de transferência! Cole no WhatsApp.');
+  };
+
   return (
     <div className="match-detail" style={{ animation: 'fadeIn 0.5s ease-out' }}>
       <header style={{ marginBottom: '1.5rem' }}>
@@ -108,6 +141,12 @@ export const MatchDetail = () => {
           </div>
           <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '0.5rem 0.8rem' }} onClick={() => setAddPlayerModal(true)}>+ Jogador</button>
+            <button className="btn-outline" style={{ fontSize: '0.75rem', padding: '0.5rem 0.8rem', borderColor: '#25D366', color: '#25D366' }} onClick={handleShare}>
+              <Share2 size={14} style={{ marginRight: '4px' }}/> Whats
+            </button>
+            <button className="btn-outline" style={{ fontSize: '0.75rem', padding: '0.5rem 0.8rem' }} onClick={handleCopyToClipboard} title="Copiar Link">
+              📋 Copiar Link
+            </button>
             <button className="btn-outline" style={{ fontSize: '0.75rem', padding: '0.5rem 0.8rem', borderColor: 'var(--color-danger)', color: 'var(--color-danger)' }} onClick={handleDeleteMatch}>Excluir</button>
           </div>
         </div>
@@ -117,6 +156,7 @@ export const MatchDetail = () => {
         {([
           { key: 'lista',      icon: '📋', label: 'Lista'      },
           { key: 'times',      icon: '🛡️', label: 'Times'      },
+          { key: 'jogo',       icon: '⚽', label: 'Jogo'       },
           { key: 'financeiro', icon: '💰', label: 'Financeiro' },
         ] as { key: MatchTab; icon: string; label: string }[]).map(({ key, icon, label }) => (
           <button
@@ -164,7 +204,7 @@ export const MatchDetail = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
 
                     <div style={{ minWidth: 0 }}>
-                      <h4 style={{ margin: 0, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.user.name} <span style={{ color: 'var(--color-primary)', fontSize: '0.75rem' }}>{player.user.position}</span></h4>
+                      <h4 style={{ margin: 0, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.user.name} <span style={{ color: 'var(--color-primary)', fontSize: '0.75rem', marginLeft: '4px' }}>{player.user.position}</span> <span style={{ fontSize: '0.75rem', color: 'var(--color-accent)'}}>⭐ {player.user.overall || 50}</span></h4>
                       <p style={{ margin: 0, fontSize: '0.75rem', color: player.attendance === 'Confirmado' ? 'var(--color-primary)' : 'var(--color-danger)' }}>{player.attendance}</p>
                     </div>
                   </div>
@@ -231,18 +271,37 @@ export const MatchDetail = () => {
 
         {activeTab === 'times' && (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-              <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><ShieldAlert /> Sorteio Inteligente</h2>
-              <button className="btn-primary" onClick={() => drawTeams(match.id)}>Sortear Times</button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}><ShieldAlert /> Sorteio Inteligente</h2>
+              <button className="btn-primary" onClick={() => drawTeams(match.id, drawOptions)}>Sortear Times</button>
+            </div>
+
+            <div style={{ background: 'var(--color-surface-light)', padding: '1.2rem', borderRadius: 'var(--radius-md)', marginBottom: '2rem', display: 'flex', flexWrap: 'wrap', gap: '1.5rem', border: '1px solid var(--border-color)' }}>
+              <span style={{ width: '100%', fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Prioridades do Sorteio (Multi-seleção)</span>
+              
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', opacity: drawOptions.useMensalista ? 1 : 0.6, transition: 'opacity 0.2s' }}>
+                <input type="checkbox" checked={drawOptions.useMensalista} onChange={(e) => setDrawOptions(p => ({ ...p, useMensalista: e.target.checked }))} style={{ accentColor: 'var(--color-primary)', width: '18px', height: '18px', cursor: 'pointer' }} />
+                <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>Tiers (Mensalista/Avulso)</span>
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', opacity: drawOptions.useOverall ? 1 : 0.6, transition: 'opacity 0.2s' }}>
+                <input type="checkbox" checked={drawOptions.useOverall} onChange={(e) => setDrawOptions(p => ({ ...p, useOverall: e.target.checked }))} style={{ accentColor: 'var(--color-primary)', width: '18px', height: '18px', cursor: 'pointer' }} />
+                <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>Equilibrar Overall</span>
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', opacity: drawOptions.useArrival ? 1 : 0.6, transition: 'opacity 0.2s' }}>
+                <input type="checkbox" checked={drawOptions.useArrival} onChange={(e) => setDrawOptions(p => ({ ...p, useArrival: e.target.checked }))} style={{ accentColor: 'var(--color-primary)', width: '18px', height: '18px', cursor: 'pointer' }} />
+                <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>Ordem de Chegada</span>
+              </label>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '2rem' }}>
               {TEAM_NAMES.filter((teamName) => playersFullData.some((player) => player.team === teamName)).map((teamName, index) => {
                 const teamPlayers = playersFullData.filter((player) => player.team === teamName);
-                const ovrVal = teamPlayers.length ? 'Equilibrado' : '--';
+                const ovrAvg = teamPlayers.length ? Math.round(teamPlayers.reduce((sum, p) => sum + (p.user.overall || 50), 0) / teamPlayers.length) : '--';
                 return (
                   <div key={teamName} style={{ background: index % 2 === 0 ? 'rgba(69, 242, 72, 0.05)' : 'rgba(102, 252, 241, 0.05)', padding: '1.5rem', borderRadius: 'var(--radius-md)', border: index % 2 === 0 ? '1px solid rgba(69, 242, 72, 0.2)' : '1px solid rgba(102, 252, 241, 0.2)' }}>
-                    <h3 style={{ marginBottom: '1rem', color: index % 2 === 0 ? 'var(--color-primary)' : 'var(--color-accent)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Shield /> Time {teamName} (OVR {ovrVal})</h3>
+                    <h3 style={{ marginBottom: '1rem', color: index % 2 === 0 ? 'var(--color-primary)' : 'var(--color-accent)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Shield /> Time {teamName} (OVR {ovrAvg})</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       {teamPlayers.map((player) => (
                         <div key={player.userId} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>

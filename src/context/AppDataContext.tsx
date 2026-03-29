@@ -27,7 +27,7 @@ export interface AppContextType extends AppState {
   loginWithGoogle: () => Promise<void>;
   loginWithFirebaseUser: (fbUser: FirebaseUser) => void;
   logout: () => void;
-  drawTeams: (matchId: string) => void;
+  drawTeams: (matchId: string, options?: { useMensalista?: boolean, useOverall?: boolean, useArrival?: boolean }) => void;
   recordEvent: (matchId: string, playerId: string, type: 'goal' | 'assist') => void;
   setMatchStats: (matchId: string, playerId: string, goals: number, assists: number) => void;
   swapPlayers: (matchId: string, playerOutId: string, playerInId: string) => void;
@@ -56,11 +56,11 @@ const createId = (): string =>
     : Math.random().toString(36).slice(2, 10);
 
 const defaultMockUsers: User[] = [
-  { id: '1', name: 'João (Admin)', position: 'Linha', photoUrl: '', matchesPlayed: 10, goals: 5, assists: 3, subscriptionType: 'Mensalista' },
-  { id: '2', name: 'Marcos (Goleiro)', position: 'Goleiro', photoUrl: '', matchesPlayed: 10, goals: 0, assists: 1, subscriptionType: 'Avulso' },
-  { id: '3', name: 'Lucas (Artilheiro)', position: 'Linha', photoUrl: '', matchesPlayed: 8, goals: 12, assists: 2, subscriptionType: 'Mensalista' },
-  { id: '4', name: 'Thiago (Xerife)', position: 'Linha', photoUrl: '', matchesPlayed: 9, goals: 1, assists: 1, subscriptionType: 'Mensalista' },
-  { id: '5', name: 'Pedro (Motorzinho)', position: 'Linha', photoUrl: '', matchesPlayed: 10, goals: 4, assists: 8, subscriptionType: 'Avulso' },
+  { id: '1', name: 'João (Admin)', position: 'Linha', photoUrl: '', matchesPlayed: 10, goals: 5, assists: 3, subscriptionType: 'Mensalista', overall: 85 },
+  { id: '2', name: 'Marcos (Goleiro)', position: 'Goleiro', photoUrl: '', matchesPlayed: 10, goals: 0, assists: 1, subscriptionType: 'Avulso', overall: 70 },
+  { id: '3', name: 'Lucas (Artilheiro)', position: 'Linha', photoUrl: '', matchesPlayed: 8, goals: 12, assists: 2, subscriptionType: 'Mensalista', overall: 90 },
+  { id: '4', name: 'Thiago (Xerife)', position: 'Linha', photoUrl: '', matchesPlayed: 9, goals: 1, assists: 1, subscriptionType: 'Mensalista', overall: 80 },
+  { id: '5', name: 'Pedro (Motorzinho)', position: 'Linha', photoUrl: '', matchesPlayed: 10, goals: 4, assists: 8, subscriptionType: 'Avulso', overall: 75 },
 ];
 
 const defaultMockCourts: Court[] = [
@@ -115,12 +115,7 @@ const getStoredState = (uid?: string): AppState => {
   }
 };
 
-const sortPlayers = (a: PlayerWithUser, b: PlayerWithUser): number => {
-  if (a.user.subscriptionType !== b.user.subscriptionType) {
-    return a.user.subscriptionType === 'Mensalista' ? -1 : 1;
-  }
-  return a.user.name.localeCompare(b.user.name);
-};
+// sortPlayers removed and shifted to drawTeams inline
 
 const getPlayersWithUser = (players: MatchPlayer[], users: User[]): PlayerWithUser[] =>
   players
@@ -194,6 +189,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       goals: 0,
       assists: 0,
       matchesPlayed: 0,
+      overall: userData.overall ?? 50,
     };
 
     setState((prev) => ({
@@ -279,16 +275,37 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }));
   };
 
-  const drawTeams: AppContextType['drawTeams'] = (matchId) => {
+  const drawTeams: AppContextType['drawTeams'] = (matchId, options = {}) => {
+    const { useMensalista = true, useOverall = true, useArrival = false } = options;
+
     setState((prev) => ({
       ...prev,
       matches: prev.matches.map((match) => {
         if (match.id !== matchId) return match;
 
+        const originalOrder = new Map(match.players.map((p, i) => [p.userId, i]));
+
         const confirmedPlayers = getPlayersWithUser(
           match.players.filter((player) => player.attendance === 'Confirmado'),
           prev.users,
-        ).sort(sortPlayers);
+        ).sort((a, b) => {
+          if (useArrival && !useMensalista && !useOverall) {
+             return originalOrder.get(a.player.userId)! - originalOrder.get(b.player.userId)!;
+          }
+          if (useMensalista) {
+            if (a.user.subscriptionType !== b.user.subscriptionType) {
+              return a.user.subscriptionType === 'Mensalista' ? -1 : 1;
+            }
+          }
+          if (useOverall) {
+            const overallDiff = (b.user.overall || 50) - (a.user.overall || 50);
+            if (overallDiff !== 0) return overallDiff;
+          }
+          if (useArrival) {
+            return originalOrder.get(a.player.userId)! - originalOrder.get(b.player.userId)!;
+          }
+          return a.user.name.localeCompare(b.user.name);
+        });
 
         if (confirmedPlayers.length < 2) {
           return { ...match, players: match.players.map((player) => ({ ...player, team: null })) };
@@ -305,61 +322,102 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const mensalistas = confirmedPlayers.filter((e) => e.user.subscriptionType === 'Mensalista');
         const avulsos = confirmedPlayers.filter((e) => e.user.subscriptionType !== 'Mensalista');
 
-        const numMensalistaTeams = Math.min(numTeams, Math.max(1, Math.ceil(mensalistas.length / TARGET_SIZE)));
-        const mensalistaZoneEnd = avulsos.length > 0 ? numMensalistaTeams : numTeams;
+        let mensalistaZoneEnd = numTeams;
+        if (useMensalista && avulsos.length > 0) {
+          const numMensalistaTeams = Math.min(numTeams, Math.max(1, Math.ceil(mensalistas.length / TARGET_SIZE)));
+          mensalistaZoneEnd = numMensalistaTeams;
+        }
 
         const updatedPlayers = match.players.map((p) => ({ ...p, team: null as string | null }));
         const teamSizes = new Array(numTeams).fill(0) as number[];
+        const teamOveralls = new Array(numTeams).fill(0) as number[];
 
         const assignToZone = (entry: (typeof confirmedPlayers)[0], zoneStart: number, zoneEnd: number) => {
           let bestTeam = -1;
+          let minOverall = Infinity;
+          
           for (let i = zoneStart; i < zoneEnd; i++) {
             if (teamSizes[i] < teamCapacities[i]) {
-              bestTeam = i;
-              break;
-            }
-          }
-          if (bestTeam < 0) {
-            for (let i = 0; i < numTeams; i++) {
-              if (teamSizes[i] < teamCapacities[i]) {
+              if (useOverall) {
+                if (teamOveralls[i] < minOverall) {
+                  minOverall = teamOveralls[i];
+                  bestTeam = i;
+                }
+              } else {
                 bestTeam = i;
                 break;
               }
             }
           }
+          if (bestTeam < 0) {
+            minOverall = Infinity;
+            for (let i = 0; i < numTeams; i++) {
+              if (teamSizes[i] < teamCapacities[i]) {
+                if (useOverall) {
+                  if (teamOveralls[i] < minOverall) {
+                    minOverall = teamOveralls[i];
+                    bestTeam = i;
+                  }
+                } else {
+                  bestTeam = i;
+                  break;
+                }
+              }
+            }
+          }
+          
           if (bestTeam >= 0) {
             const playerIndex = updatedPlayers.findIndex((p) => p.userId === entry.player.userId);
             if (playerIndex >= 0) {
               updatedPlayers[playerIndex].team = TEAM_NAMES[bestTeam];
               teamSizes[bestTeam]++;
+              teamOveralls[bestTeam] += (entry.user.overall || 50);
             }
           }
         };
 
-        const mensalistaGKs = mensalistas.filter((e) => e.user.position === 'Goleiro');
-        const mensalistaField = mensalistas.filter((e) => e.user.position !== 'Goleiro');
-        mensalistaGKs.slice(0, mensalistaZoneEnd).forEach((gk, index) => {
-          const playerIndex = updatedPlayers.findIndex((p) => p.userId === gk.player.userId);
-          if (playerIndex >= 0) {
-            updatedPlayers[playerIndex].team = TEAM_NAMES[index];
-            teamSizes[index]++;
-          }
-        });
-        const extraMensalistaGKs = mensalistaGKs.slice(mensalistaZoneEnd);
-        [...mensalistaField, ...extraMensalistaGKs].forEach((e) => assignToZone(e, 0, mensalistaZoneEnd));
+        if (useMensalista) {
+          const mensalistaGKs = mensalistas.filter((e) => e.user.position === 'Goleiro');
+          const mensalistaField = mensalistas.filter((e) => e.user.position !== 'Goleiro');
+          mensalistaGKs.slice(0, mensalistaZoneEnd).forEach((gk, index) => {
+            const playerIndex = updatedPlayers.findIndex((p) => p.userId === gk.player.userId);
+            if (playerIndex >= 0) {
+              updatedPlayers[playerIndex].team = TEAM_NAMES[index];
+              teamSizes[index]++;
+              teamOveralls[index] += (gk.user.overall || 50);
+            }
+          });
+          const extraMensalistaGKs = mensalistaGKs.slice(mensalistaZoneEnd);
+          [...mensalistaField, ...extraMensalistaGKs].forEach((e) => assignToZone(e, 0, mensalistaZoneEnd));
 
-        const avulsoGKs = avulsos.filter((e) => e.user.position === 'Goleiro');
-        const avulsoField = avulsos.filter((e) => e.user.position !== 'Goleiro');
-        avulsoGKs.slice(0, numTeams - mensalistaZoneEnd).forEach((gk, index) => {
-          const teamIndex = mensalistaZoneEnd + index;
-          const playerIndex = updatedPlayers.findIndex((p) => p.userId === gk.player.userId);
-          if (playerIndex >= 0) {
-            updatedPlayers[playerIndex].team = TEAM_NAMES[teamIndex];
-            teamSizes[teamIndex]++;
-          }
-        });
-        const extraAvulsoGKs = avulsoGKs.slice(numTeams - mensalistaZoneEnd);
-        [...avulsoField, ...extraAvulsoGKs].forEach((e) => assignToZone(e, mensalistaZoneEnd, numTeams));
+          const avulsoGKs = avulsos.filter((e) => e.user.position === 'Goleiro');
+          const avulsoField = avulsos.filter((e) => e.user.position !== 'Goleiro');
+          avulsoGKs.slice(0, numTeams - mensalistaZoneEnd).forEach((gk, index) => {
+            const teamIndex = mensalistaZoneEnd + index;
+            const playerIndex = updatedPlayers.findIndex((p) => p.userId === gk.player.userId);
+            if (playerIndex >= 0) {
+              updatedPlayers[playerIndex].team = TEAM_NAMES[teamIndex];
+              teamSizes[teamIndex]++;
+              teamOveralls[teamIndex] += (gk.user.overall || 50);
+            }
+          });
+          const extraAvulsoGKs = avulsoGKs.slice(numTeams - mensalistaZoneEnd);
+          [...avulsoField, ...extraAvulsoGKs].forEach((e) => assignToZone(e, mensalistaZoneEnd, numTeams));
+        } else {
+          const gks = confirmedPlayers.filter(e => e.user.position === 'Goleiro');
+          const field = confirmedPlayers.filter(e => e.user.position !== 'Goleiro');
+          
+          gks.slice(0, numTeams).forEach((gk, index) => {
+            const playerIndex = updatedPlayers.findIndex((p) => p.userId === gk.player.userId);
+            if (playerIndex >= 0) {
+              updatedPlayers[playerIndex].team = TEAM_NAMES[index];
+              teamSizes[index]++;
+              teamOveralls[index] += (gk.user.overall || 50);
+            }
+          });
+          const extraGks = gks.slice(numTeams);
+          [...field, ...extraGks].forEach(e => assignToZone(e, 0, numTeams));
+        }
 
         return { ...match, players: updatedPlayers };
       }),
@@ -523,6 +581,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       goals: 0,
       assists: 0,
       subscriptionType: 'Avulso',
+      overall: 50,
     };
     setState({
       ...defaultState,
