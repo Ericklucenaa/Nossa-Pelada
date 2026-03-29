@@ -16,7 +16,7 @@ const TEAM_NAMES = ['1', '2', '3', '4', '5', '6', '7', '8'] as const;
 export const MatchDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { matches, users, updateMatchPlayer, updateMatch, drawTeams, setMatchStats, swapPlayers, joinMatch, removeMatch, currentUser } = useAppContext();
+  const { matches, users, courts, updateMatchPlayer, updateMatch, drawTeams, setMatchStats, swapPlayers, joinMatch, removeMatch, currentUser } = useAppContext();
   const location = useLocation();
   const initialTab = (location.hash.replace('#', '') as MatchTab) || 'lista';
   const [activeTab, setActiveTab] = useState<MatchTab>((['lista','jogo','financeiro','times'] as MatchTab[]).includes(initialTab) ? initialTab : 'lista');
@@ -117,15 +117,23 @@ export const MatchDetail = () => {
     }
   };
 
+  const getShareLink = () => `${window.location.origin}/match/${match.id}?join=true`;
+  
+  const getShareText = () => {
+    const court = courts.find(c => c.id === match.courtId);
+    const courtName = court ? court.name : 'Local não definido';
+    const date = new Date(match.date).toLocaleDateString('pt-BR');
+    const time = new Date(match.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    return `⚽ *CONVOCAÇÃO: ${match.name.toUpperCase()}*\n📍 ${courtName} • 📅 ${date} • 🕐 ${time}\n\nFala galera! Clique no link abaixo para confirmar sua presença:\n\n👉 ${getShareLink()}`;
+  };
+
   const handleShare = () => {
-    const link = `${window.location.origin}/match/${match.id}?join=true`;
-    const text = `⚽ *CONVOCAÇÃO: ${match.name.toUpperCase()}* ⚽\n\nFala galera! Clique no link abaixo para confirmar sua presença na pelada:\n\n👉 ${link}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+    window.open(`https://wa.me/?text=${encodeURIComponent(getShareText())}`, '_blank');
   };
 
   const handleCopyToClipboard = () => {
-    const link = `${window.location.origin}/match/${match.id}?join=true`;
-    navigator.clipboard.writeText(link);
+    navigator.clipboard.writeText(getShareLink());
     window.alert('Link copiado para a área de transferência! Cole no WhatsApp.');
   };
 
