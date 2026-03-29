@@ -74,32 +74,50 @@ function App() {
   const { currentUser, authLoading } = useAppContext();
   const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot'>('login');
 
+  if (authLoading) {
+    return (
+      <div style={{
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        minHeight: '100vh', gap: '1rem',
+        background: 'var(--color-bg)'
+      }}>
+        <div style={{
+          width: 60, height: 60, borderRadius: '50%',
+          background: 'linear-gradient(135deg, var(--color-primary), var(--color-accent))',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '1.8rem', animation: 'pulse 1.5s ease-in-out infinite'
+        }}>⚽</div>
+        <p className="text-muted" style={{ fontSize: '0.9rem' }}>Carregando...</p>
+        <style>{`@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.7;transform:scale(0.92)} }`}</style>
+      </div>
+    );
+  }
+
   return (
     <Router>
       <div className="app-container" style={{ minHeight: '100vh' }}>
-        {authLoading ? (
-          <div style={{
-            display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center',
-            minHeight: '100vh', gap: '1rem',
-            background: 'var(--color-bg)'
-          }}>
-            <div style={{
-              width: 60, height: 60, borderRadius: '50%',
-              background: 'linear-gradient(135deg, var(--color-primary), var(--color-accent))',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '1.8rem', animation: 'pulse 1.5s ease-in-out infinite'
-            }}>⚽</div>
-            <p className="text-muted" style={{ fontSize: '0.9rem' }}>Carregando...</p>
-            <style>{`@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.7;transform:scale(0.92)} }`}</style>
-          </div>
-        ) : !currentUser ? (
-          authMode === 'login' ? <Login setMode={setAuthMode} /> :
-          authMode === 'register' ? <Register setMode={setAuthMode} /> :
-          <ForgotPassword setMode={setAuthMode} />
-        ) : (
-          <MainApp />
-        )}
+        <Routes>
+          {/* Public Routes - MatchDetail is key for WhatsApp links */}
+          <Route path="/matches/:id" element={
+            <>
+              <TopBar />
+              <main className="main-content"><MatchDetail /></main>
+              {currentUser && <BottomNav />}
+            </>
+          } />
+
+          {/* Protected Routes or Login Flow */}
+          <Route path="*" element={
+            !currentUser ? (
+              authMode === 'login' ? <Login setMode={setAuthMode} /> :
+              authMode === 'register' ? <Register setMode={setAuthMode} /> :
+              <ForgotPassword setMode={setAuthMode} />
+            ) : (
+              <MainApp />
+            )
+          } />
+        </Routes>
       </div>
     </Router>
   );

@@ -26,7 +26,9 @@ export type PaymentStatus = 'Pago' | 'Pendente';
 export type AttendanceStatus = 'Confirmado' | 'Pendente' | 'Ausente' | 'De Fora';
 
 export interface MatchPlayer {
-  userId: string;
+  userId?: string;              // Optional if it's a guest
+  guestName?: string;          // Name for guests
+  guestPosition?: Position;  // Position for guests
   attendance: AttendanceStatus;
   paymentStatus: PaymentStatus;
   paymentType: 'Mensalista' | 'Avulso';

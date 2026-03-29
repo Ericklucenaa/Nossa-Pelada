@@ -33,6 +33,7 @@ export interface AppContextType extends AppState {
   swapPlayers: (matchId: string, playerOutId: string, playerInId: string) => void;
   toggleTheme: () => void;
   joinMatch: (matchId: string, userId: string) => void;
+  joinMatchGuest: (matchId: string, guestData: { name: string; position: import('../types').Position }) => void;
   removeMatch: (matchId: string) => void;
   deleteCourt: (courtId: string) => void;
   authLoading: boolean;
@@ -541,6 +542,30 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  const joinMatchGuest: AppContextType['joinMatchGuest'] = (matchId, guestData) => {
+    setState((prev) => ({
+      ...prev,
+      matches: prev.matches.map((match) => {
+        if (match.id !== matchId) return match;
+        
+        // Prevent duplicate guest names if easy, though not strictly required
+        const isAlreadyIn = match.players.some(p => p.guestName === guestData.name);
+        if (isAlreadyIn) return match;
+
+        const newPlayer: MatchPlayer = {
+          guestName: guestData.name,
+          guestPosition: guestData.position,
+          attendance: 'Confirmado',
+          paymentStatus: 'Pendente',
+          paymentType: 'Avulso',
+          team: null,
+        };
+
+        return { ...match, players: [...match.players, newPlayer] };
+      }),
+    }));
+  };
+
   const removeMatch: AppContextType['removeMatch'] = (matchId) => {
     setState((prev) => ({
       ...prev,
@@ -669,6 +694,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         swapPlayers,
         toggleTheme,
         joinMatch,
+        joinMatchGuest,
         removeMatch,
         deleteCourt,
         authLoading,

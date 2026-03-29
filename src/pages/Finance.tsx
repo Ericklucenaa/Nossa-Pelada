@@ -20,7 +20,7 @@ const getPlayerCost = (match: Match, player: MatchPlayer): number =>
   player.paymentType === 'Mensalista' ? match.valorMensal ?? 0 : match.valorAvulso ?? 0;
 
 export const Finance = () => {
-  const { matches, users, updateMatchPlayer } = useAppContext();
+  const { matches, users, updateMatchPlayer, updateMatch } = useAppContext();
   const [detailModal, setDetailModal] = useState<PaymentStatus | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
@@ -40,18 +40,19 @@ export const Finance = () => {
       match.players
         .filter((player) => player.attendance === 'Confirmado')
         .forEach((player) => {
-          const user = users.find((candidate) => candidate.id === player.userId);
-          if (!user) return;
+          const userName = player.userId ? users.find((c) => c.id === player.userId)?.name : player.guestName;
+          const uid = player.userId || `guest:${player.guestName}`;
+          if (!userName && !uid) return;
 
           const isMonthlyCharge = player.paymentType === 'Mensalista';
-          const monthlyKey = `${selectedMonth}:${player.userId}`;
+          const monthlyKey = `${selectedMonth}:${uid}`;
           if (isMonthlyCharge && monthlySeen.has(monthlyKey)) return;
           if (isMonthlyCharge) monthlySeen.add(monthlyKey);
 
           entries.push({
-            id: isMonthlyCharge ? monthlyKey : `${match.id}:${player.userId}`,
-            userId: player.userId,
-            userName: user.name,
+            id: isMonthlyCharge ? monthlyKey : `${match.id}:${uid}`,
+            userId: player.userId || uid,
+            userName: userName || 'Convidado',
             matchId: match.id,
             matchName: match.name,
             paymentType: player.paymentType,
@@ -99,7 +100,16 @@ export const Finance = () => {
       return;
     }
 
-    updateMatchPlayer(entry.matchId, entry.userId, { paymentStatus: nextStatus });
+    if (entry.userId.startsWith('guest:')) {
+      const guestName = entry.userId.replace('guest:', '');
+      updateMatch(entry.matchId, {
+        players: matches.find(m => m.id === entry.matchId)?.players.map(p => 
+          p.guestName === guestName ? { ...p, paymentStatus: nextStatus } : p
+        ) || []
+      });
+    } else {
+      updateMatchPlayer(entry.matchId, entry.userId, { paymentStatus: nextStatus });
+    }
   };
 
   const shiftMonth = (direction: -1 | 1) => {
