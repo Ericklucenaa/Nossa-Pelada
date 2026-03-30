@@ -57,35 +57,11 @@ const createId = (): string =>
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2, 10);
 
-const defaultMockUsers: User[] = [
-  { id: '1', name: 'João (Admin)', position: 'Linha', photoUrl: '', matchesPlayed: 10, goals: 5, assists: 3, subscriptionType: 'Mensalista', overall: 85 },
-  { id: '2', name: 'Marcos (Goleiro)', position: 'Goleiro', photoUrl: '', matchesPlayed: 10, goals: 0, assists: 1, subscriptionType: 'Avulso', overall: 70 },
-  { id: '3', name: 'Lucas (Artilheiro)', position: 'Linha', photoUrl: '', matchesPlayed: 8, goals: 12, assists: 2, subscriptionType: 'Mensalista', overall: 90 },
-  { id: '4', name: 'Thiago (Xerife)', position: 'Linha', photoUrl: '', matchesPlayed: 9, goals: 1, assists: 1, subscriptionType: 'Mensalista', overall: 80 },
-  { id: '5', name: 'Pedro (Motorzinho)', position: 'Linha', photoUrl: '', matchesPlayed: 10, goals: 4, assists: 8, subscriptionType: 'Avulso', overall: 75 },
-];
+const defaultMockUsers: User[] = [];
 
-const defaultMockCourts: Court[] = [
-  { id: '1', name: 'Arena Soccer VIP', address: 'Rua do Fut, 123', pricePerHour: 150 },
-];
+const defaultMockCourts: Court[] = [];
 
-const defaultMockMatches: Match[] = [
-  {
-    id: '1',
-    name: 'Pelada de Quarta',
-    courtId: '1',
-    date: new Date().toISOString(),
-    valorAvulso: 20,
-    valorMensal: 60,
-    stats: {},
-    players: defaultMockUsers.map((user, index) => ({
-      userId: user.id,
-      attendance: index < 4 ? 'Confirmado' : 'De Fora',
-      paymentStatus: 'Pendente',
-      paymentType: user.subscriptionType,
-    })),
-  },
-];
+const defaultMockMatches: Match[] = [];
 
 const defaultState: AppState = {
   users: defaultMockUsers,
@@ -147,6 +123,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           
           if (docSnap.exists()) {
             const cloudData = docSnap.data() as AppState;
+            
+            // MIGRATION: auto-sync organizerPlayers for older version matches
+            let matchesMigrated = false;
+            if (cloudData.matches && Array.isArray(cloudData.matches)) {
+               cloudData.matches = cloudData.matches.map(m => {
+                 if (!m.organizerPlayers || m.organizerPlayers.length === 0) {
+                   matchesMigrated = true;
+                   const updated = { ...m, organizerPlayers: cloudData.users || [] };
+                   setDoc(doc(db, 'matches', m.id), updated, { merge: true }).catch(console.error);
+                   return updated;
+                 }
+                 return m;
+               });
+               if (matchesMigrated) {
+                 setDoc(docRef, cloudData, { merge: true }).catch(console.error);
+               }
+            }
+
             // Ensure currentUser matches the auth user
             const existingInCloud = cloudData.users.find(u => u.id === fbUser.uid);
             setState({ 
