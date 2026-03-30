@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import type { ReactNode } from 'react';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { signOut, signInWithPopup, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, updateProfile } from 'firebase/auth';
-import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { auth, googleProvider, db } from '../firebase';
 import type { Court, Match, MatchPlayer, User } from '../types';
 import { AppContext } from './appContext';
@@ -40,7 +40,7 @@ export interface AppContextType extends AppState {
   loginWithEmail: (email: string, password: string) => Promise<void>;
   registerWithEmail: (email: string, password: string, displayName: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
-  loadPublicMatch: (matchId: string) => Promise<void>;
+  listenPublicMatch: (matchId: string, onLoaded?: () => void) => () => void;
 }
 
 type PlayerWithUser = {
@@ -181,13 +181,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (currentUidRef.current && !authLoading) {
       const syncRef = doc(db, 'user_data', currentUidRef.current);
       setDoc(syncRef, state).catch(err => console.error('Cloud Update error:', err));
-      
-      // Also sync matches individually to a global collection for public sharing
-      state.matches.forEach(match => {
-        const matchRef = doc(db, 'matches', match.id);
-        const matchData = { ...match, organizerId: currentUidRef.current };
-        setDoc(matchRef, matchData).catch(err => console.error('Public sync error:', err));
-      });
     }
   }, [state, authLoading]);
 
@@ -209,15 +202,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const removeUser: AppContextType['removeUser'] = (userId) => {
-    setState((prev) => ({
-      ...prev,
-      users: prev.users.filter((user) => user.id !== userId),
-      matches: prev.matches.map((match) => ({
-        ...match,
-        players: match.players.filter((player) => player.userId !== userId),
-        stats: Object.fromEntries(Object.entries(match.stats).filter(([key]) => key !== userId)),
-      })),
-    }));
+    setState((prev) => {
+      const matches = prev.matches.map((match) => {
+        const hasUser = match.players.some((p) => p.userId === userId) || (match.stats && match.stats[userId]);
+        if (!hasUser) return match;
+        const newPlayers = match.players.filter((p) => p.userId !== userId);
+        const newStats = { ...match.stats };
+        delete newStats[userId];
+        const m = { ...match, players: newPlayers, stats: newStats };
+        const matchRef = doc(db, 'matches', match.id);
+        setDoc(matchRef, m, { merge: true }).catch(err => console.error('Sync error:', err));
+        return m;
+      });
+      return {
+        ...prev,
+        users: prev.users.filter((user) => user.id !== userId),
+        matches,
+      };
+    });
   };
 
   const updateUser: AppContextType['updateUser'] = (userId, updates) => {
@@ -229,12 +231,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
       let updatedMatches = prev.matches;
       if (updates.subscriptionType) {
-        updatedMatches = prev.matches.map((match) => ({
-          ...match,
-          players: match.players.map((p) =>
-            p.userId === userId ? { ...p, paymentType: updates.subscriptionType! } : p,
-          ),
-        }));
+        updatedMatches = prev.matches.map((match) => {
+           let modified = false;
+           const newPlayers = match.players.map((p) => {
+             if (p.userId === userId) { modified = true; return { ...p, paymentType: updates.subscriptionType! }; }
+             return p;
+           });
+           if (modified) {
+             const m = { ...match, players: newPlayers };
+             const matchRef = doc(db, 'matches', match.id);
+             setDoc(matchRef, m, { merge: true }).catch(err => console.error('Sync error:', err));
+             return m;
+           }
+           return match;
+        });
       }
 
       return {
@@ -258,6 +268,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const addMatch: AppContextType['addMatch'] = (matchData) => {
     const newMatch: Match = { ...matchData, id: createId(), stats: {} };
+    const matchRef = doc(db, 'matches', newMatch.id);
+    setDoc(matchRef, newMatch, { merge: true }).catch(err => console.error('Sync error:', err));
     setState((prev) => ({ ...prev, matches: [...prev.matches, newMatch] }));
   };
 
@@ -296,7 +308,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         });
 
         if (confirmedPlayers.length < 2) {
-          return { ...match, players: match.players.map((player) => ({ ...player, team: null })) };
+          const m = { ...match, players: match.players.map((player) => ({ ...player, team: null })) };
+          const matchRef = doc(db, 'matches', m.id);
+          setDoc(matchRef, m, { merge: true }).catch(console.error);
+          return m;
         }
 
         const TARGET_SIZE = 5;
@@ -407,7 +422,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           [...field, ...extraGks].forEach(e => assignToZone(e, 0, numTeams));
         }
 
-        return { ...match, players: updatedPlayers };
+        const updatedMatch = { ...match, players: updatedPlayers };
+        const matchRef = doc(db, 'matches', updatedMatch.id);
+        setDoc(matchRef, updatedMatch, { merge: true }).catch(console.error);
+        return updatedMatch;
       }),
     }));
   };
@@ -429,7 +447,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const currentStats = match.stats ?? {};
         const playerStats = currentStats[playerId] ?? { goals: 0, assists: 0 };
 
-        return {
+        const m = {
           ...match,
           stats: {
             ...currentStats,
@@ -439,6 +457,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             },
           },
         };
+        const matchRef = doc(db, 'matches', m.id);
+        setDoc(matchRef, m, { merge: true }).catch(console.error);
+        return m;
       });
 
       return {
@@ -452,11 +473,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const setMatchStats = (matchId: string, playerId: string, goals: number, assists: number) => {
     setState((prev) => {
-      const matches = prev.matches.map((match) =>
-        match.id === matchId
-          ? { ...match, stats: { ...(match.stats ?? {}), [playerId]: { goals, assists } } }
-          : match,
-      );
+      const matches = prev.matches.map((match) => {
+        if (match.id === matchId) {
+          const m = { ...match, stats: { ...(match.stats ?? {}), [playerId]: { goals, assists } } };
+          const matchRef = doc(db, 'matches', m.id);
+          setDoc(matchRef, m, { merge: true }).catch(console.error);
+          return m;
+        }
+        return match;
+      });
       const users = prev.users.map((user) => {
         if (user.id !== playerId) return user;
         let totalGoals = 0;
@@ -487,18 +512,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const playerOut = match.players.find((player) => player.userId === playerOutId);
         const outTeam = playerOut?.team ?? null;
 
-        return {
+        const m = {
           ...match,
           players: match.players.map((player) => {
             if (player.userId === playerOutId) {
-              return { ...player, attendance: 'De Fora', team: null };
+              return { ...player, attendance: 'De Fora' as const, team: null };
             }
             if (player.userId === playerInId) {
-              return { ...player, attendance: 'Confirmado', team: outTeam };
+              return { ...player, attendance: 'Confirmado' as const, team: outTeam };
             }
             return player;
           }),
         };
+        const matchRef = doc(db, 'matches', m.id);
+        setDoc(matchRef, m, { merge: true }).catch(console.error);
+        return m;
       }),
     }));
   };
@@ -516,9 +544,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setState((prev) => ({
       ...prev,
       courts: prev.courts.filter((court) => court.id !== courtId),
-      matches: prev.matches.map((match) =>
-        match.courtId === courtId ? { ...match, courtId: '' } : match,
-      ),
+      matches: prev.matches.map((match) => {
+        if (match.courtId === courtId) {
+          const m = { ...match, courtId: '' };
+          const matchRef = doc(db, 'matches', m.id);
+          setDoc(matchRef, m, { merge: true }).catch(console.error);
+          return m;
+        }
+        return match;
+      }),
     }));
   };
 
@@ -694,14 +728,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setState((prev) => ({ ...defaultState, theme: prev.theme, currentUser: null }));
   };
 
-  const loadPublicMatch = async (matchId: string) => {
-    try {
-      const matchDoc = await getDoc(doc(db, 'matches', matchId));
-      if (matchDoc.exists()) {
-        const publicMatch = matchDoc.data() as Match;
+  const listenPublicMatch = (matchId: string, onLoaded?: () => void) => {
+    let isFirst = true;
+    return onSnapshot(doc(db, 'matches', matchId), (docSnap) => {
+      if (isFirst && onLoaded) {
+        onLoaded();
+        isFirst = false;
+      }
+      if (docSnap.exists()) {
+        const publicMatch = docSnap.data() as Match;
         setState(prev => {
           const exists = prev.matches.some(m => m.id === matchId);
           if (exists) {
+            // Check if it's identical first to prevent re-renders (using stringify for deep compare)
+            const currentObj = prev.matches.find(m => m.id === matchId);
+            if (JSON.stringify(currentObj) === JSON.stringify(publicMatch)) return prev;
             return {
               ...prev,
               matches: prev.matches.map(m => m.id === matchId ? publicMatch : m)
@@ -713,9 +754,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           };
         });
       }
-    } catch (err) {
-      console.error('Error loading public match:', err);
-    }
+    });
   };
 
   return (
@@ -746,7 +785,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         loginWithEmail,
         registerWithEmail,
         resetPassword,
-        loadPublicMatch,
+        listenPublicMatch,
       }}
     >
       {children}

@@ -18,7 +18,7 @@ const TEAM_NAMES = ['1', '2', '3', '4', '5', '6', '7', '8'] as const;
 export const MatchDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { matches, users, courts, updateMatchPlayer, updateMatch, drawTeams, setMatchStats, swapPlayers, joinMatch, joinMatchGuest, removeMatch, currentUser, loadPublicMatch } = useAppContext();
+  const { matches, users, courts, updateMatchPlayer, updateMatch, drawTeams, setMatchStats, swapPlayers, joinMatch, joinMatchGuest, removeMatch, currentUser, listenPublicMatch } = useAppContext();
   const location = useLocation();
   const initialTab = (location.hash.replace('#', '') as MatchTab) || 'lista';
   const [activeTab, setActiveTab] = useState<MatchTab>((['lista','jogo','financeiro','times'] as MatchTab[]).includes(initialTab) ? initialTab : 'lista');
@@ -32,13 +32,12 @@ export const MatchDetail = () => {
 
   useEffect(() => {
     if (id) {
-      loadPublicMatch(id).finally(() => {
-        setIsLoading(false);
-      });
+      const unsubscribe = listenPublicMatch(id, () => setIsLoading(false));
+      return () => unsubscribe();
     } else {
       setIsLoading(false);
     }
-  }, [id, loadPublicMatch]);
+  }, [id, listenPublicMatch]);
 
   useEffect(() => {
     if (!match) return;
