@@ -18,7 +18,7 @@ const TEAM_NAMES = ['1', '2', '3', '4', '5', '6', '7', '8'] as const;
 export const MatchDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { matches, users, courts, updateMatchPlayer, updateMatch, drawTeams, setMatchStats, swapPlayers, joinMatch, joinMatchGuest, removeMatch, currentUser } = useAppContext();
+  const { matches, users, courts, updateMatchPlayer, updateMatch, drawTeams, setMatchStats, swapPlayers, joinMatch, joinMatchGuest, removeMatch, currentUser, loadPublicMatch } = useAppContext();
   const location = useLocation();
   const initialTab = (location.hash.replace('#', '') as MatchTab) || 'lista';
   const [activeTab, setActiveTab] = useState<MatchTab>((['lista','jogo','financeiro','times'] as MatchTab[]).includes(initialTab) ? initialTab : 'lista');
@@ -26,8 +26,17 @@ export const MatchDetail = () => {
   const [addPlayerModal, setAddPlayerModal] = useState(false);
   const [guestModal, setGuestModal] = useState(false);
   const [drawOptions, setDrawOptions] = useState({ useMensalista: true, useOverall: true, useArrival: false });
+  const [isLoading, setIsLoading] = useState(true);
 
   const match = matches.find((candidate) => candidate.id === id);
+
+  useEffect(() => {
+    if (id && !match) {
+      loadPublicMatch(id).finally(() => setIsLoading(false));
+    } else {
+      setIsLoading(false);
+    }
+  }, [id, match, loadPublicMatch]);
 
   useEffect(() => {
     if (!match) return;
@@ -46,7 +55,17 @@ export const MatchDetail = () => {
     }
   }, [location.search, match, currentUser, joinMatch, navigate]);
 
-  if (!match) return <div>Match not found</div>;
+  if (isLoading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: '1rem' }}>
+        <div style={{ width: 50, height: 50, border: '4px solid var(--color-surface-light)', borderTopColor: 'var(--color-primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+        <p className="text-muted">Buscando pelada...</p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  if (!match) return <div style={{ padding: '2rem', textAlign: 'center' }} className="glass-panel"><h2 style={{ color: 'var(--color-danger)' }}>Pelada não encontrada</h2><p className="text-muted">O link pode estar expirado ou incorreto.</p><button className="btn-primary" onClick={() => navigate('/')} style={{ marginTop: '1rem' }}>Ir para o Início</button></div>;
 
   const handleUpdateStatus = (playerId: string | undefined, guestName: string | undefined, status: MatchPlayer['attendance']) => {
     if (playerId) {

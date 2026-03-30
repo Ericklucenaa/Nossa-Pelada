@@ -40,6 +40,7 @@ export interface AppContextType extends AppState {
   loginWithEmail: (email: string, password: string) => Promise<void>;
   registerWithEmail: (email: string, password: string, displayName: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  loadPublicMatch: (matchId: string) => Promise<void>;
 }
 
 type PlayerWithUser = {
@@ -180,6 +181,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (currentUidRef.current && !authLoading) {
       const syncRef = doc(db, 'user_data', currentUidRef.current);
       setDoc(syncRef, state).catch(err => console.error('Cloud Update error:', err));
+      
+      // Also sync matches individually to a global collection for public sharing
+      state.matches.forEach(match => {
+        const matchRef = doc(db, 'matches', match.id);
+        const matchData = { ...match, organizerId: currentUidRef.current };
+        setDoc(matchRef, matchData).catch(err => console.error('Public sync error:', err));
+      });
     }
   }, [state, authLoading]);
 
@@ -673,6 +681,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setState((prev) => ({ ...defaultState, theme: prev.theme, currentUser: null }));
   };
 
+  const loadPublicMatch = async (matchId: string) => {
+    if (state.matches.some(m => m.id === matchId)) return;
+    try {
+      const matchDoc = await getDoc(doc(db, 'matches', matchId));
+      if (matchDoc.exists()) {
+        const publicMatch = matchDoc.data() as Match;
+        setState(prev => ({
+          ...prev,
+          matches: [...prev.matches, publicMatch]
+        }));
+      }
+    } catch (err) {
+      console.error('Error loading public match:', err);
+    }
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -701,6 +725,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         loginWithEmail,
         registerWithEmail,
         resetPassword,
+        loadPublicMatch,
       }}
     >
       {children}
