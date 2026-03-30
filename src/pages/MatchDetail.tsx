@@ -29,6 +29,7 @@ export const MatchDetail = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   const match = matches.find((candidate) => candidate.id === id);
+  const matchUsers = match?.organizerPlayers || users;
 
   useEffect(() => {
     if (id) {
@@ -107,7 +108,7 @@ export const MatchDetail = () => {
   const playersFullData = match.players
     .map((player): PlayerRow | null => {
       if (player.userId) {
-        const user = users.find((u) => u.id === player.userId);
+        const user = matchUsers.find((u) => u.id === player.userId);
         if (user) return { ...player, displayName: user.name, displayPosition: user.position, user };
       }
       if (player.guestName) {
@@ -436,7 +437,7 @@ export const MatchDetail = () => {
             <div style={{ display: 'grid', gap: '0.75rem', marginBottom: '1.5rem' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Jogadores Cadastrados</span>
               <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'grid', gap: '0.5rem', paddingRight: '4px' }}>
-                {users
+                {matchUsers
                   .filter(u => !match.players.some(p => p.userId === u.id))
                   .sort((a,b) => a.name.localeCompare(b.name))
                   .map(u => (
@@ -516,7 +517,7 @@ export const MatchDetail = () => {
           <div className="glass-panel" style={{ width: '95%', maxWidth: '650px', padding: '2.5rem', maxHeight: '85vh', overflowY: 'auto', background: 'var(--color-surface)', border: '1px solid var(--border-color)' }}>
             <h3 style={{ marginBottom: '0.8rem', fontSize: '1.8rem', color: 'var(--color-primary)', fontWeight: 800 }}>Adicionar à Pelada</h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-              {users.filter((user) => !match.players.some((player) => player.userId === user.id)).map((user) => (
+              {matchUsers.filter((user) => !match.players.some((player) => player.userId === user.id)).map((user) => (
                 <button key={user.id} className="btn-outline" onClick={() => joinMatch(match.id, user.id)} style={{ padding: '1.2rem', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
                     <span style={{ fontWeight: 700 }}>{user.name}</span>

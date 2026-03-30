@@ -211,7 +211,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         delete newStats[userId];
         const m = { ...match, players: newPlayers, stats: newStats };
         const matchRef = doc(db, 'matches', match.id);
-        setDoc(matchRef, m, { merge: true }).catch(err => console.error('Sync error:', err));
+        setDoc(matchRef, { ...m, organizerPlayers: prev.users.filter((user) => user.id !== userId) }, { merge: true }).catch(err => console.error('Sync error:', err));
         return m;
       });
       return {
@@ -240,7 +240,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
            if (modified) {
              const m = { ...match, players: newPlayers };
              const matchRef = doc(db, 'matches', match.id);
-             setDoc(matchRef, m, { merge: true }).catch(err => console.error('Sync error:', err));
+             setDoc(matchRef, { ...m, organizerPlayers: updatedUsers }, { merge: true }).catch(err => console.error('Sync error:', err));
              return m;
            }
            return match;
@@ -269,8 +269,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const addMatch: AppContextType['addMatch'] = (matchData) => {
     const newMatch: Match = { ...matchData, id: createId(), stats: {} };
     const matchRef = doc(db, 'matches', newMatch.id);
-    setDoc(matchRef, newMatch, { merge: true }).catch(err => console.error('Sync error:', err));
-    setState((prev) => ({ ...prev, matches: [...prev.matches, newMatch] }));
+    setState((prev) => {
+      setDoc(matchRef, { ...newMatch, organizerPlayers: prev.users }, { merge: true }).catch(err => console.error('Sync error:', err));
+      return { ...prev, matches: [...prev.matches, newMatch] };
+    });
   };
 
 
@@ -310,7 +312,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         if (confirmedPlayers.length < 2) {
           const m = { ...match, players: match.players.map((player) => ({ ...player, team: null })) };
           const matchRef = doc(db, 'matches', m.id);
-          setDoc(matchRef, m, { merge: true }).catch(console.error);
+          setDoc(matchRef, { ...m, organizerPlayers: prev.users }, { merge: true }).catch(console.error);
           return m;
         }
 
@@ -424,7 +426,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
         const updatedMatch = { ...match, players: updatedPlayers };
         const matchRef = doc(db, 'matches', updatedMatch.id);
-        setDoc(matchRef, updatedMatch, { merge: true }).catch(console.error);
+        setDoc(matchRef, { ...updatedMatch, organizerPlayers: prev.users }, { merge: true }).catch(console.error);
         return updatedMatch;
       }),
     }));
@@ -458,7 +460,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           },
         };
         const matchRef = doc(db, 'matches', m.id);
-        setDoc(matchRef, m, { merge: true }).catch(console.error);
+        setDoc(matchRef, { ...m, organizerPlayers: prev.users }, { merge: true }).catch(console.error);
         return m;
       });
 
@@ -477,7 +479,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         if (match.id === matchId) {
           const m = { ...match, stats: { ...(match.stats ?? {}), [playerId]: { goals, assists } } };
           const matchRef = doc(db, 'matches', m.id);
-          setDoc(matchRef, m, { merge: true }).catch(console.error);
+          setDoc(matchRef, { ...m, organizerPlayers: prev.users }, { merge: true }).catch(console.error);
           return m;
         }
         return match;
@@ -525,7 +527,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           }),
         };
         const matchRef = doc(db, 'matches', m.id);
-        setDoc(matchRef, m, { merge: true }).catch(console.error);
+        setDoc(matchRef, { ...m, organizerPlayers: prev.users }, { merge: true }).catch(console.error);
         return m;
       }),
     }));
@@ -548,7 +550,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         if (match.courtId === courtId) {
           const m = { ...match, courtId: '' };
           const matchRef = doc(db, 'matches', m.id);
-          setDoc(matchRef, m, { merge: true }).catch(console.error);
+          setDoc(matchRef, { ...m, organizerPlayers: prev.users }, { merge: true }).catch(console.error);
           return m;
         }
         return match;
@@ -557,9 +559,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Helper to sync a match to Firestore (public)
-  const syncMatchToFirestore = (match: Match) => {
+  const syncMatchToFirestore = (match: Match, currentUsers: User[]) => {
     const matchRef = doc(db, 'matches', match.id);
-    setDoc(matchRef, match, { merge: true }).catch(err => console.error('Match sync failed:', err));
+    setDoc(matchRef, { ...match, organizerPlayers: currentUsers }, { merge: true }).catch(err => console.error('Match sync failed:', err));
   };
 
   // Wrap state updates that need public sync
@@ -568,7 +570,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const match = prev.matches.find(m => m.id === matchId);
       if (!match) return prev;
       const updatedMatch = { ...match, ...updates };
-      syncMatchToFirestore(updatedMatch);
+      syncMatchToFirestore(updatedMatch, prev.users);
       return {
         ...prev,
         matches: prev.matches.map(m => m.id === matchId ? updatedMatch : m)
@@ -582,7 +584,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
        if (!match) return prev;
        const updatedPlayers = match.players.map((p) => p.userId === playerId ? { ...p, ...updates } : p);
        const updatedMatch = { ...match, players: updatedPlayers };
-       syncMatchToFirestore(updatedMatch);
+       syncMatchToFirestore(updatedMatch, prev.users);
        return {
          ...prev,
          matches: prev.matches.map(m => m.id === matchId ? updatedMatch : m)
@@ -592,8 +594,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const joinMatch: AppContextType['joinMatch'] = (matchId, userId) => {
     setState((prev) => {
-      const user = prev.users.find((candidate) => candidate.id === userId);
       const match = prev.matches.find(m => m.id === matchId);
+      const user = prev.users.find((candidate) => candidate.id === userId) || match?.organizerPlayers?.find((candidate) => candidate.id === userId);
       if (!user || !match || match.players.some(p => p.userId === userId)) return prev;
 
       const newPlayer: MatchPlayer = {
@@ -605,7 +607,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       };
 
       const updatedMatch = { ...match, players: [...match.players, newPlayer] };
-      syncMatchToFirestore(updatedMatch);
+      syncMatchToFirestore(updatedMatch, prev.users);
 
       return {
         ...prev,
@@ -629,7 +631,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       };
 
       const updatedMatch = { ...match, players: [...match.players, newPlayer] };
-      syncMatchToFirestore(updatedMatch);
+      syncMatchToFirestore(updatedMatch, prev.users);
 
       return {
         ...prev,

@@ -48,6 +48,7 @@ export interface Match {
   
   // Match Specific Stats
   stats: Record<string, { goals: number, assists: number }>; // userId -> stats
+  organizerPlayers?: User[];
 }
 
 
