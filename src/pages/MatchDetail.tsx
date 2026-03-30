@@ -427,34 +427,62 @@ export const MatchDetail = () => {
       {/* Guest RSVP Modal */}
       {guestModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-          <div className="glass-panel" style={{ width: '100%', maxWidth: '400px', padding: '2rem' }}>
+          <div className="glass-panel" style={{ width: '100%', maxWidth: '450px', padding: '2rem', maxHeight: '90vh', overflowY: 'auto' }}>
             <h2 className="text-gradient">Confirmar Presença</h2>
-            <p className="text-muted" style={{ marginBottom: '1.5rem' }}>Coloque seu nome e posição para entrar na lista.</p>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const target = e.target as typeof e.target & { name: { value: string }; pos: { value: Position } };
-              joinMatchGuest(match.id, { name: target.name.value, position: target.pos.value });
-              setGuestModal(false);
-              navigate(location.pathname, { replace: true });
-            }}>
-               <div style={{ marginBottom: '1rem' }}>
-                 <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem' }}>Seu Nome</label>
-                 <input name="name" className="input-base" placeholder="Ex: Pelé do Bairro" required />
-               </div>
-               <div style={{ marginBottom: '1.5rem' }}>
-                 <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem' }}>Posição</label>
-                 <select name="pos" className="input-base" style={{ background: 'var(--color-surface)' }}>
-                   <option value="Linha">Linha</option>
-                   <option value="Goleiro">Goleiro</option>
-                 </select>
-               </div>
-               <div style={{ display: 'flex', gap: '1rem' }}>
-                 <button type="button" className="btn-outline" style={{ flex: 1 }} onClick={() => setGuestModal(false)}>Cancelar</button>
-                 <button type="submit" className="btn-primary" style={{ flex: 1 }}>Confirmar!</button>
-               </div>
-            </form>
+            <p className="text-muted" style={{ marginBottom: '1.5rem' }}>Selecione seu nome da lista ou adicione um novo.</p>
+            
+            <div style={{ display: 'grid', gap: '0.75rem', marginBottom: '1.5rem' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Jogadores Cadastrados</span>
+              <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'grid', gap: '0.5rem', paddingRight: '4px' }}>
+                {users
+                  .filter(u => !match.players.some(p => p.userId === u.id))
+                  .sort((a,b) => a.name.localeCompare(b.name))
+                  .map(u => (
+                    <button 
+                      key={u.id} 
+                      className="btn-outline" 
+                      style={{ justifyContent: 'space-between', padding: '0.75rem 1rem', fontSize: '0.9rem' }}
+                      onClick={() => {
+                        joinMatch(match.id, u.id);
+                        setGuestModal(false);
+                        navigate(location.pathname, { replace: true });
+                      }}
+                    >
+                      {u.name} <span style={{ fontSize: '0.7rem', opacity: 0.7 }}>{u.position}</span>
+                    </button>
+                  ))
+                }
+              </div>
+            </div>
+
+            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
+              <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '1rem' }}>Não está na lista? (Novo Convidado)</span>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const target = e.target as typeof e.target & { name: { value: string }; pos: { value: Position } };
+                joinMatchGuest(match.id, { name: target.name.value, position: target.pos.value });
+                setGuestModal(false);
+                navigate(location.pathname, { replace: true });
+              }}>
+                <div style={{ marginBottom: '1rem' }}>
+                  <input name="name" className="input-base" placeholder="Seu Nome Completo" required />
+                </div>
+                <div style={{ marginBottom: '1.5rem', display: 'flex', gap: '0.5rem' }}>
+                  <select name="pos" className="input-base" style={{ background: 'var(--color-surface)', flex: 1 }}>
+                    <option value="Linha">Linha</option>
+                    <option value="Goleiro">Goleiro</option>
+                  </select>
+                  <button type="submit" className="btn-primary" style={{ flex: 1.5 }}>Confirmar!</button>
+                </div>
+              </form>
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+              <button className="btn-outline" style={{ flex: 1 }} onClick={() => setGuestModal(false)}>Fechar</button>
+            </div>
+            
             <div style={{ marginTop: '1.5rem', textAlign: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
-               <button className="btn-link" style={{ fontSize: '0.85rem' }} onClick={() => { setGuestModal(false); navigate('/'); }}>Ou faça login para salvar estatísticas</button>
+               <button className="btn-link" style={{ fontSize: '0.85rem' }} onClick={() => { setGuestModal(false); navigate('/'); }}>Já tem conta? Fazer Login</button>
             </div>
           </div>
         </div>

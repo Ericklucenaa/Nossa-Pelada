@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import type { ReactNode } from 'react';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { signOut, signInWithPopup, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, updateProfile } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { auth, googleProvider, db } from '../firebase';
 import type { Court, Match, MatchPlayer, User } from '../types';
 import { AppContext } from './appContext';
@@ -261,28 +261,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setState((prev) => ({ ...prev, matches: [...prev.matches, newMatch] }));
   };
 
-  const updateMatch: AppContextType['updateMatch'] = (matchId, updates) => {
-    setState((prev) => ({
-      ...prev,
-      matches: prev.matches.map((match) => (match.id === matchId ? { ...match, ...updates } : match)),
-    }));
-  };
 
-  const updateMatchPlayer: AppContextType['updateMatchPlayer'] = (matchId, playerId, updates) => {
-    setState((prev) => ({
-      ...prev,
-      matches: prev.matches.map((match) =>
-        match.id === matchId
-          ? {
-              ...match,
-              players: match.players.map((player) =>
-                player.userId === playerId ? { ...player, ...updates } : player,
-              ),
-            }
-          : match,
-      ),
-    }));
-  };
 
   const drawTeams: AppContextType['drawTeams'] = (matchId, options = {}) => {
     const { useMensalista = true, useOverall = true, useArrival = false } = options;
@@ -524,61 +503,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }));
   };
 
-  const joinMatch: AppContextType['joinMatch'] = (matchId, userId) => {
-    setState((prev) => {
-      const user = prev.users.find((candidate) => candidate.id === userId);
-      if (!user) return prev;
-
-      return {
-        ...prev,
-        matches: prev.matches.map((match) => {
-          if (match.id !== matchId || match.players.some((player) => player.userId === userId)) {
-            return match;
-          }
-
-          const newPlayer: MatchPlayer = {
-            userId,
-            attendance: 'Confirmado',
-            paymentStatus: 'Pendente',
-            paymentType: user.subscriptionType,
-            team: null,
-          };
-
-          return { ...match, players: [...match.players, newPlayer] };
-        }),
-      };
-    });
-  };
-
-  const joinMatchGuest: AppContextType['joinMatchGuest'] = (matchId, guestData) => {
-    setState((prev) => ({
-      ...prev,
-      matches: prev.matches.map((match) => {
-        if (match.id !== matchId) return match;
-        
-        // Prevent duplicate guest names if easy, though not strictly required
-        const isAlreadyIn = match.players.some(p => p.guestName === guestData.name);
-        if (isAlreadyIn) return match;
-
-        const newPlayer: MatchPlayer = {
-          guestName: guestData.name,
-          guestPosition: guestData.position,
-          attendance: 'Confirmado',
-          paymentStatus: 'Pendente',
-          paymentType: 'Avulso',
-          team: null,
-        };
-
-        return { ...match, players: [...match.players, newPlayer] };
-      }),
-    }));
-  };
-
   const removeMatch: AppContextType['removeMatch'] = (matchId) => {
     setState((prev) => ({
       ...prev,
       matches: prev.matches.filter((match) => match.id !== matchId),
     }));
+    // Explicitly remove from public collection
+    deleteDoc(doc(db, 'matches', matchId)).catch(err => console.error('Error deleting public match:', err));
   };
 
   const deleteCourt: AppContextType['deleteCourt'] = (courtId) => {
@@ -589,6 +520,88 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         match.courtId === courtId ? { ...match, courtId: '' } : match,
       ),
     }));
+  };
+
+  // Helper to sync a match to Firestore (public)
+  const syncMatchToFirestore = (match: Match) => {
+    const matchRef = doc(db, 'matches', match.id);
+    setDoc(matchRef, match, { merge: true }).catch(err => console.error('Match sync failed:', err));
+  };
+
+  // Wrap state updates that need public sync
+  const updateMatchAndSync = (matchId: string, updates: Partial<Match>) => {
+    setState(prev => {
+      const match = prev.matches.find(m => m.id === matchId);
+      if (!match) return prev;
+      const updatedMatch = { ...match, ...updates };
+      syncMatchToFirestore(updatedMatch);
+      return {
+        ...prev,
+        matches: prev.matches.map(m => m.id === matchId ? updatedMatch : m)
+      };
+    });
+  };
+
+  const updateMatchPlayer: AppContextType['updateMatchPlayer'] = (matchId, playerId, updates) => {
+    setState((prev) => {
+       const match = prev.matches.find(m => m.id === matchId);
+       if (!match) return prev;
+       const updatedPlayers = match.players.map((p) => p.userId === playerId ? { ...p, ...updates } : p);
+       const updatedMatch = { ...match, players: updatedPlayers };
+       syncMatchToFirestore(updatedMatch);
+       return {
+         ...prev,
+         matches: prev.matches.map(m => m.id === matchId ? updatedMatch : m)
+       };
+    });
+  };
+
+  const joinMatch: AppContextType['joinMatch'] = (matchId, userId) => {
+    setState((prev) => {
+      const user = prev.users.find((candidate) => candidate.id === userId);
+      const match = prev.matches.find(m => m.id === matchId);
+      if (!user || !match || match.players.some(p => p.userId === userId)) return prev;
+
+      const newPlayer: MatchPlayer = {
+        userId,
+        attendance: 'Confirmado',
+        paymentStatus: 'Pendente',
+        paymentType: user.subscriptionType,
+        team: null,
+      };
+
+      const updatedMatch = { ...match, players: [...match.players, newPlayer] };
+      syncMatchToFirestore(updatedMatch);
+
+      return {
+        ...prev,
+        matches: prev.matches.map(m => m.id === matchId ? updatedMatch : m)
+      };
+    });
+  };
+
+  const joinMatchGuest: AppContextType['joinMatchGuest'] = (matchId, guestData) => {
+    setState((prev) => {
+      const match = prev.matches.find(m => m.id === matchId);
+      if (!match || match.players.some(p => p.guestName === guestData.name)) return prev;
+
+      const newPlayer: MatchPlayer = {
+        guestName: guestData.name,
+        guestPosition: guestData.position,
+        attendance: 'Confirmado',
+        paymentStatus: 'Pendente',
+        paymentType: 'Avulso',
+        team: null,
+      };
+
+      const updatedMatch = { ...match, players: [...match.players, newPlayer] };
+      syncMatchToFirestore(updatedMatch);
+
+      return {
+        ...prev,
+        matches: prev.matches.map(m => m.id === matchId ? updatedMatch : m)
+      };
+    });
   };
 
   const login: AppContextType['login'] = (userId) => {
@@ -706,7 +719,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         removeUser,
         addCourt,
         addMatch,
-        updateMatch,
+        updateMatch: updateMatchAndSync,
         updateMatchPlayer,
         login,
         loginWithGoogle,
