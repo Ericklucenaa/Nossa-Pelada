@@ -186,7 +186,6 @@ export const MatchDetail = () => {
            </div>
            <div style={{ display: 'flex', gap: '0.5rem' }}>
              <button className="btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.8rem' }} onClick={() => setGuestModal(true)}>Confirmar Presença</button>
-             <button className="btn-outline" style={{ padding: '0.5rem 1rem', fontSize: '0.8rem' }} onClick={() => navigate('/')}>Já tenho conta</button>
            </div>
         </div>
       )}
@@ -200,12 +199,12 @@ export const MatchDetail = () => {
             </p>
           </div>
           <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            {currentUser && <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '0.5rem 0.8rem' }} onClick={() => setAddPlayerModal(true)}>+ Jogador</button>}
-            <button className="btn-outline" style={{ fontSize: '0.75rem', padding: '0.5rem 0.8rem', borderColor: '#25D366', color: '#25D366' }} onClick={handleShare}>
-              <Share2 size={14} style={{ marginRight: '4px' }}/> Whats
-            </button>
             {currentUser && (
               <>
+                <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '0.5rem 0.8rem' }} onClick={() => setAddPlayerModal(true)}>+ Jogador</button>
+                <button className="btn-outline" style={{ fontSize: '0.75rem', padding: '0.5rem 0.8rem', borderColor: '#25D366', color: '#25D366' }} onClick={handleShare}>
+                  <Share2 size={14} style={{ marginRight: '4px' }}/> Whats
+                </button>
                 <button className="btn-outline" style={{ fontSize: '0.75rem', padding: '0.5rem 0.8rem' }} onClick={handleCopyToClipboard} title="Copiar Link">
                   📋 Copiar Link
                 </button>
@@ -222,7 +221,9 @@ export const MatchDetail = () => {
           { key: 'times',      icon: '🛡️', label: 'Times'      },
           { key: 'jogo',       icon: '⚽', label: 'Jogo'       },
           { key: 'financeiro', icon: '💰', label: 'Financeiro' },
-        ] as { key: MatchTab; icon: string; label: string }[]).map(({ key, icon, label }) => (
+        ] as { key: MatchTab; icon: string; label: string }[])
+        .filter(tab => currentUser || tab.key === 'lista')
+        .map(({ key, icon, label }) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}
