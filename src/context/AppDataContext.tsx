@@ -695,15 +695,23 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const loadPublicMatch = async (matchId: string) => {
-    if (state.matches.some(m => m.id === matchId)) return;
     try {
       const matchDoc = await getDoc(doc(db, 'matches', matchId));
       if (matchDoc.exists()) {
         const publicMatch = matchDoc.data() as Match;
-        setState(prev => ({
-          ...prev,
-          matches: [...prev.matches, publicMatch]
-        }));
+        setState(prev => {
+          const exists = prev.matches.some(m => m.id === matchId);
+          if (exists) {
+            return {
+              ...prev,
+              matches: prev.matches.map(m => m.id === matchId ? publicMatch : m)
+            };
+          }
+          return {
+            ...prev,
+            matches: [...prev.matches, publicMatch]
+          };
+        });
       }
     } catch (err) {
       console.error('Error loading public match:', err);

@@ -31,12 +31,14 @@ export const MatchDetail = () => {
   const match = matches.find((candidate) => candidate.id === id);
 
   useEffect(() => {
-    if (id && !match) {
-      loadPublicMatch(id).finally(() => setIsLoading(false));
+    if (id) {
+      loadPublicMatch(id).finally(() => {
+        setIsLoading(false);
+      });
     } else {
       setIsLoading(false);
     }
-  }, [id, match, loadPublicMatch]);
+  }, [id, loadPublicMatch]);
 
   useEffect(() => {
     if (!match) return;
