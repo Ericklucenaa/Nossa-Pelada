@@ -24,7 +24,7 @@ export const MatchList = () => {
 
   // Saved matches from other organizers
   const savedMatches = useMemo(
-    () => matches.filter(m => savedMatchIds.includes(m.id) && m.organizerId !== currentUser?.id),
+    () => matches.filter(m => (savedMatchIds ?? []).includes(m.id) && m.organizerId !== currentUser?.id),
     [matches, savedMatchIds, currentUser],
   );
 

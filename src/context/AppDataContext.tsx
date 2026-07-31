@@ -150,7 +150,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             // Ensure currentUser matches the auth user
             const existingInCloud = cloudData.users.find(u => u.id === fbUser.uid);
             setState({ 
-              ...cloudData, 
+              ...sanitizeState(cloudData), 
               currentUser: existingInCloud || null 
             });
           } else {

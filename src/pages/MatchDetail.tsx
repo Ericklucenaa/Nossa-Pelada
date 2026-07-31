@@ -43,7 +43,7 @@ export const MatchDetail = () => {
   const isOrganizer = currentUser != null && (!match?.organizerId || match.organizerId === currentUser.id);
   const organizerUser = match?.organizerPlayers?.find(u => u.id === match.organizerId)
     ?? users.find(u => u.id === match?.organizerId);
-  const isSaved = !!id && savedMatchIds.includes(id);
+  const isSaved = !!id && (savedMatchIds ?? []).includes(id);
 
   useEffect(() => {
     if (id) {
