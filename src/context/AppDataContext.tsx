@@ -745,31 +745,35 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const listenPublicMatch = (matchId: string, onLoaded?: () => void) => {
     let isFirst = true;
-    return onSnapshot(doc(db, 'matches', matchId), (docSnap) => {
-      if (isFirst && onLoaded) {
-        onLoaded();
-        isFirst = false;
-      }
-      if (docSnap.exists()) {
-        const publicMatch = docSnap.data() as Match;
-        setState(prev => {
-          const exists = prev.matches.some(m => m.id === matchId);
-          if (exists) {
-            // Check if it's identical first to prevent re-renders (using stringify for deep compare)
-            const currentObj = prev.matches.find(m => m.id === matchId);
-            if (JSON.stringify(currentObj) === JSON.stringify(publicMatch)) return prev;
+    const unblock = () => { if (isFirst) { onLoaded?.(); isFirst = false; } };
+    return onSnapshot(
+      doc(db, 'matches', matchId),
+      (docSnap) => {
+        unblock();
+        if (docSnap.exists()) {
+          const publicMatch = docSnap.data() as Match;
+          setState(prev => {
+            const exists = prev.matches.some(m => m.id === matchId);
+            if (exists) {
+              const currentObj = prev.matches.find(m => m.id === matchId);
+              if (JSON.stringify(currentObj) === JSON.stringify(publicMatch)) return prev;
+              return {
+                ...prev,
+                matches: prev.matches.map(m => m.id === matchId ? publicMatch : m)
+              };
+            }
             return {
               ...prev,
-              matches: prev.matches.map(m => m.id === matchId ? publicMatch : m)
+              matches: [...prev.matches, publicMatch]
             };
-          }
-          return {
-            ...prev,
-            matches: [...prev.matches, publicMatch]
-          };
-        });
+          });
+        }
+      },
+      (error) => {
+        console.error('listenPublicMatch error:', error.code, error.message);
+        unblock(); // unblock loading spinner even on permission errors
       }
-    });
+    );
   };
 
   return (
