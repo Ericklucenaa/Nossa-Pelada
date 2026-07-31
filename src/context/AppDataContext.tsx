@@ -13,6 +13,7 @@ export interface AppState {
   matches: Match[];
   currentUser: User | null;
   theme: 'light' | 'dark';
+  savedMatchIds: string[];
 }
 
 export interface AppContextType extends AppState {
@@ -37,6 +38,8 @@ export interface AppContextType extends AppState {
   joinMatchGuest: (matchId: string, guestData: { name: string; position: import('../types').Position }) => void;
   removeMatch: (matchId: string) => void;
   deleteCourt: (courtId: string) => void;
+  saveMatch: (matchId: string) => void;
+  unsaveMatch: (matchId: string) => void;
   authLoading: boolean;
   loginWithEmail: (email: string, password: string) => Promise<void>;
   registerWithEmail: (email: string, password: string, displayName: string) => Promise<void>;
@@ -70,6 +73,7 @@ const defaultState: AppState = {
   matches: defaultMockMatches,
   currentUser: null,
   theme: 'dark',
+  savedMatchIds: [],
 };
 
 const sanitizeState = (value: unknown): AppState => {
@@ -81,6 +85,7 @@ const sanitizeState = (value: unknown): AppState => {
     matches: Array.isArray(candidate.matches) ? candidate.matches : defaultState.matches,
     currentUser: candidate.currentUser && typeof candidate.currentUser === 'object' ? candidate.currentUser as User : null,
     theme: candidate.theme === 'light' ? 'light' : 'dark',
+    savedMatchIds: Array.isArray(candidate.savedMatchIds) ? candidate.savedMatchIds : [],
   };
 };
 
@@ -269,7 +274,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addMatch: AppContextType['addMatch'] = (matchData) => {
-    const newMatch: Match = { ...matchData, id: createId(), stats: {} };
+    const newMatch: Match = { ...matchData, id: createId(), stats: {}, organizerId: currentUidRef.current ?? undefined };
     const matchRef = doc(db, 'matches', newMatch.id);
     setState((prev) => {
       setDoc(matchRef, { ...newMatch, organizerPlayers: prev.users }, { merge: true }).catch(err => console.error('Sync error:', err));
@@ -280,7 +285,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
 
   const drawTeams: AppContextType['drawTeams'] = (matchId, options = {}) => {
-    const { useMensalista = true, useOverall = true, useArrival = false } = options;
+    const { useMensalista = true, useArrival = false } = options;
+    const useOverall = true; // always balance by overall (not used for sorting)
 
     setState((prev) => ({
       ...prev,
@@ -293,17 +299,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           match.players.filter((player) => player.attendance === 'Confirmado'),
           prev.users,
         ).sort((a, b) => {
-          if (useArrival && !useMensalista && !useOverall) {
+          if (useArrival && !useMensalista) {
              return originalOrder.get(a.player.userId)! - originalOrder.get(b.player.userId)!;
           }
           if (useMensalista) {
             if (a.user.subscriptionType !== b.user.subscriptionType) {
               return a.user.subscriptionType === 'Mensalista' ? -1 : 1;
             }
-          }
-          if (useOverall) {
-            const overallDiff = (b.user.overall || 50) - (a.user.overall || 50);
-            if (overallDiff !== 0) return overallDiff;
           }
           if (useArrival) {
             return originalOrder.get(a.player.userId)! - originalOrder.get(b.player.userId)!;
@@ -776,6 +778,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     );
   };
 
+  const saveMatch: AppContextType['saveMatch'] = (matchId) => {
+    setState(prev => ({
+      ...prev,
+      savedMatchIds: prev.savedMatchIds.includes(matchId)
+        ? prev.savedMatchIds
+        : [...prev.savedMatchIds, matchId],
+    }));
+  };
+
+  const unsaveMatch: AppContextType['unsaveMatch'] = (matchId) => {
+    setState(prev => ({
+      ...prev,
+      savedMatchIds: prev.savedMatchIds.filter(id => id !== matchId),
+    }));
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -801,6 +819,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         joinMatchGuest,
         removeMatch,
         deleteCourt,
+        saveMatch,
+        unsaveMatch,
         authLoading,
         loginWithEmail,
         registerWithEmail,

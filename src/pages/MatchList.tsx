@@ -6,17 +6,26 @@ import type { Match } from '../types';
 import { buildIsoFromDateAndTime, formatCurrencyBRL, parseMoneyInput, getNextMatchDate } from '../utils/format';
 
 export const MatchList = () => {
-  const { matches, courts, addMatch, updateMatch } = useAppContext();
+  const { matches, courts, addMatch, updateMatch, currentUser, savedMatchIds, unsaveMatch } = useAppContext();
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState<Match | null>(null);
 
+  // My matches: created by me (or old matches without organizerId owned by me)
   const sortedMatches = useMemo(
-    () => [...matches].sort((a, b) => {
-      const dateA = new Date(getNextMatchDate(a.date, a.isFixed)).getTime();
-      const dateB = new Date(getNextMatchDate(b.date, b.isFixed)).getTime();
-      return dateA - dateB;
-    }),
-    [matches],
+    () => [...matches]
+      .filter(m => !m.organizerId || m.organizerId === currentUser?.id)
+      .sort((a, b) => {
+        const dateA = new Date(getNextMatchDate(a.date, a.isFixed)).getTime();
+        const dateB = new Date(getNextMatchDate(b.date, b.isFixed)).getTime();
+        return dateA - dateB;
+      }),
+    [matches, currentUser],
+  );
+
+  // Saved matches from other organizers
+  const savedMatches = useMemo(
+    () => matches.filter(m => savedMatchIds.includes(m.id) && m.organizerId !== currentUser?.id),
+    [matches, savedMatchIds, currentUser],
   );
 
   const handleEditClick = (match: Match) => {
@@ -139,8 +148,42 @@ export const MatchList = () => {
             </Link>
           );
         })}
+        {sortedMatches.length === 0 && (
+          <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center' }}>
+            <p className="text-muted">Nenhuma pelada criada ainda. Crie a primeira!</p>
+          </div>
+        )}
       </div>
 
+      {savedMatches.length > 0 && (
+        <section style={{ marginTop: '2.5rem' }}>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-warning)' }}>
+            📌 Peladas Salvas
+          </h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {savedMatches.map(match => {
+              const confirmedCount = match.players.filter(p => p.attendance === 'Confirmado').length;
+              const matchDate = new Date(getNextMatchDate(match.date, match.isFixed));
+              const alreadyIn = currentUser && match.players.some(p => p.userId === currentUser.id);
+              return (
+                <div key={match.id} className="glass-panel" style={{ display: 'flex', gap: '1rem', alignItems: 'center', padding: '1rem 1.25rem', borderLeft: '4px solid var(--color-warning)' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>{match.name}</h3>
+                    <p style={{ margin: '0.2rem 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      📅 {matchDate.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })}  •  👥 {confirmedCount} confirmados
+                      {alreadyIn && <span style={{ marginLeft: '0.5rem', color: 'var(--color-primary)', fontWeight: 700 }}>✅ Na lista</span>}
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
+                    <Link to={`/matches/${match.id}`} className="btn-primary" style={{ fontSize: '0.72rem', padding: '0.4rem 0.8rem', textDecoration: 'none' }}>Ver</Link>
+                    <button className="btn-outline" style={{ fontSize: '0.72rem', padding: '0.4rem 0.8rem', borderColor: 'var(--color-warning)', color: 'var(--color-warning)' }} onClick={() => unsaveMatch(match.id)}>Remover</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {showModal && (
         <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 1000, overflowY: 'auto', padding: '2rem 1rem' }}>

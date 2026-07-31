@@ -37,6 +37,7 @@ export interface MatchPlayer {
 
 export interface Match {
   id: string;
+  organizerId?: string; // uid of the user who created this match
   name: string;
   courtId: string;
   date: string; // ISO String
