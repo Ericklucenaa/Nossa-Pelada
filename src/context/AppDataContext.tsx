@@ -134,13 +134,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             let matchesMigrated = false;
             if (cloudData.matches && Array.isArray(cloudData.matches)) {
                cloudData.matches = cloudData.matches.map(m => {
+                 let updated = m;
                  if (!m.organizerPlayers || m.organizerPlayers.length === 0) {
                    matchesMigrated = true;
-                   const updated = { ...m, organizerPlayers: cloudData.users || [] };
-                   setDoc(doc(db, 'matches', m.id), updated, { merge: true }).catch(console.error);
-                   return updated;
+                   updated = { ...updated, organizerPlayers: cloudData.users || [] };
                  }
-                 return m;
+                 // MIGRATION: stamp organizerId so old matches don't give everyone owner access
+                 if (!m.organizerId) {
+                   matchesMigrated = true;
+                   updated = { ...updated, organizerId: fbUser.uid };
+                 }
+                 if (updated !== m) {
+                   setDoc(doc(db, 'matches', m.id), { ...updated, organizerPlayers: cloudData.users || [] }, { merge: true }).catch(console.error);
+                 }
+                 return updated;
                });
                if (matchesMigrated) {
                  setDoc(docRef, cloudData, { merge: true }).catch(console.error);

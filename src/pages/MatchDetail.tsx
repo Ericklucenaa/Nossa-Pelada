@@ -39,8 +39,8 @@ export const MatchDetail = () => {
   const match = matches.find((candidate) => candidate.id === id);
   const matchUsers = match?.organizerPlayers || users;
 
-  // Only the creator can edit; backward compat: old matches without organizerId allow any logged-in user
-  const isOrganizer = currentUser != null && (!match?.organizerId || match.organizerId === currentUser.id);
+  // Strict check: only the recorded creator can manage; old matches get migrated on organizer's next login
+  const isOrganizer = currentUser != null && match?.organizerId === currentUser.id;
   const organizerUser = match?.organizerPlayers?.find(u => u.id === match.organizerId)
     ?? users.find(u => u.id === match?.organizerId);
 
