@@ -1,6 +1,8 @@
 import { useState, useRef } from 'react';
 import { useAppContext } from '../context/useAppContext';
-import { Trash, UserPlus, Camera, User as UserIcon } from 'lucide-react';
+import { Trash, UserPlus, Camera, User as UserIcon, Loader } from 'lucide-react';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../firebase';
 import type { User } from '../types';
 
 export const Players = () => {
@@ -8,6 +10,8 @@ export const Players = () => {
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState<User | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>('');
+  const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -23,6 +27,7 @@ export const Players = () => {
       canvas.height = Math.round(img.height * ratio);
       canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
       setPhotoPreview(canvas.toDataURL('image/jpeg', 0.7));
+      canvas.toBlob(blob => setPhotoBlob(blob), 'image/jpeg', 0.7);
       URL.revokeObjectURL(objectUrl);
     };
     img.src = objectUrl;
@@ -31,7 +36,58 @@ export const Players = () => {
   const openModal = (target: User | null) => {
     setEditTarget(target);
     setPhotoPreview(target?.photoUrl || '');
+    setPhotoBlob(null);
     setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditTarget(null);
+    setPhotoBlob(null);
+    setPhotoPreview('');
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    setUploading(true);
+
+    let resolvedPhotoUrl = editTarget?.photoUrl || '';
+
+    if (photoBlob) {
+      try {
+        const photoId = crypto.randomUUID();
+        const fileRef = storageRef(storage, `player-photos/${photoId}.jpg`);
+        await uploadBytes(fileRef, photoBlob, { contentType: 'image/jpeg' });
+        resolvedPhotoUrl = await getDownloadURL(fileRef);
+      } catch (err) {
+        console.error('Falha no upload da foto:', err);
+        // fallback: use base64 preview rather than losing the photo
+        resolvedPhotoUrl = photoPreview;
+      }
+    } else if (!photoPreview && !editTarget?.photoUrl) {
+      resolvedPhotoUrl = '';
+    } else if (!photoBlob && photoPreview) {
+      // user didn't change the photo
+      resolvedPhotoUrl = editTarget?.photoUrl || photoPreview;
+    }
+
+    setUploading(false);
+
+    const data = {
+      name: formData.get('name') as string,
+      position: formData.get('position') as 'Linha' | 'Goleiro',
+      subscriptionType: formData.get('subscriptionType') as 'Mensalista' | 'Avulso',
+      photoUrl: resolvedPhotoUrl,
+      overall: parseInt(formData.get('overall') as string) || 50,
+    };
+
+    if (editTarget) {
+      updateUser(editTarget.id, data);
+    } else {
+      addUser(data);
+    }
+    closeModal();
   };
 
   return (
@@ -87,24 +143,7 @@ export const Players = () => {
           <div className="glass-panel" style={{ padding: '2rem', width: '100%', maxWidth: '480px', maxHeight: '95vh', overflowY: 'auto', border: '1px solid var(--color-primary)' }}>
             <h2 style={{ marginBottom: '1.5rem', fontSize: '1.8rem', fontWeight: 800 }}>{editTarget ? 'Editar Atleta' : 'Novo Atleta'}</h2>
             
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const formData = new FormData(e.target as HTMLFormElement);
-              const data = {
-                name: formData.get('name') as string,
-                position: formData.get('position') as 'Linha' | 'Goleiro',
-                subscriptionType: formData.get('subscriptionType') as 'Mensalista' | 'Avulso',
-                photoUrl: photoPreview,
-                overall: parseInt(formData.get('overall') as string) || 50,
-              };
-              if (editTarget) {
-                 updateUser(editTarget.id, data);
-              } else {
-                 addUser(data);
-              }
-              setShowModal(false);
-              setEditTarget(null);
-            }}>
+            <form onSubmit={handleSubmit}>
               
               {/* Photo Upload Section */}
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem' }}>
@@ -162,8 +201,10 @@ export const Players = () => {
               
               
               <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-                <button type="button" className="btn-outline" style={{ border: 'none', color: 'var(--text-muted)' }} onClick={() => { setShowModal(false); setEditTarget(null); }}>Cancelar</button>
-                <button type="submit" className="btn-primary" style={{ padding: '0.7rem 1.5rem' }}>{editTarget ? 'Salvar Edição' : 'Registrar Jogador'}</button>
+                <button type="button" className="btn-outline" style={{ border: 'none', color: 'var(--text-muted)' }} onClick={closeModal} disabled={uploading}>Cancelar</button>
+                <button type="submit" className="btn-primary" style={{ padding: '0.7rem 1.5rem', minWidth: '160px', justifyContent: 'center' }} disabled={uploading}>
+                  {uploading ? <><Loader size={16} className="spin" style={{ marginRight: '0.5rem' }} /> Enviando foto...</> : (editTarget ? 'Salvar Edição' : 'Registrar Jogador')}
+                </button>
               </div>
             </form>
           </div>
