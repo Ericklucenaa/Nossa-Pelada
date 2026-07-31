@@ -25,7 +25,7 @@ const TEAM_NAMES = ['1', '2', '3', '4', '5', '6', '7', '8'] as const;
 export const MatchDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { matches, users, courts, updateMatchPlayer, updateMatch, drawTeams, setMatchStats, swapPlayers, joinMatch, joinMatchGuest, removeMatch, currentUser, listenPublicMatch, saveMatch, unsaveMatch, updateUser, savedMatchIds } = useAppContext();
+  const { matches, users, courts, updateMatchPlayer, updateMatch, drawTeams, setMatchStats, swapPlayers, joinMatch, joinMatchGuest, removeMatch, currentUser, listenPublicMatch, updateUser } = useAppContext();
   const location = useLocation();
   const initialTab = (location.hash.replace('#', '') as MatchTab) || 'lista';
   const [activeTab, setActiveTab] = useState<MatchTab>((['lista','jogo','financeiro','times'] as MatchTab[]).includes(initialTab) ? initialTab : 'lista');
@@ -43,7 +43,6 @@ export const MatchDetail = () => {
   const isOrganizer = currentUser != null && (!match?.organizerId || match.organizerId === currentUser.id);
   const organizerUser = match?.organizerPlayers?.find(u => u.id === match.organizerId)
     ?? users.find(u => u.id === match?.organizerId);
-  const isSaved = !!id && (savedMatchIds ?? []).includes(id);
 
   useEffect(() => {
     if (id) {
@@ -205,47 +204,50 @@ export const MatchDetail = () => {
       )}
 
       {/* Banner for guests and non-organizer logged-in users */}
-      {(!currentUser || !isOrganizer) && (
-        <div className="glass-panel" style={{ marginBottom: '1.5rem', border: '1px solid var(--color-primary)', background: 'rgba(69, 242, 72, 0.05)', display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.25rem' }}>
-           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <Shield size={24} color="var(--color-primary)" />
-              <div>
-                <h3 style={{ margin: 0, fontSize: '1rem' }}>
-                  {currentUser ? 'Modo Visitante' : 'Acesso Público'}
-                </h3>
-                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  {currentUser
-                    ? 'Você é visitante nesta pelada. Apenas o organizador pode fazer alterações.'
-                    : 'Confirme sua presença na lista abaixo.'}
-                </p>
-              </div>
-           </div>
-           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-             <button className="btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.8rem' }}
-               onClick={() => {
-                 if (currentUser) {
-                   const isAlreadyIn = match.players.some(p => p.userId === currentUser.id);
-                   if (!isAlreadyIn) { joinMatch(match.id, currentUser.id); setSuccessName(currentUser.name); }
-                   else window.alert('Você já está na lista desta pelada!');
-                 } else {
-                   setGuestModal(true);
-                 }
-               }}>
-               ✅ Confirmar Presença
-             </button>
-             {currentUser && !isSaved && (
-               <button className="btn-outline" style={{ padding: '0.5rem 1rem', fontSize: '0.8rem' }} onClick={() => { saveMatch(match.id); }}>
-                 🔖 Salvar Pelada
-               </button>
-             )}
-             {currentUser && isSaved && (
-               <button className="btn-outline" style={{ padding: '0.5rem 1rem', fontSize: '0.8rem', borderColor: 'var(--color-warning)', color: 'var(--color-warning)' }} onClick={() => unsaveMatch(match.id)}>
-                 📌 Salvo — Remover
-               </button>
-             )}
-           </div>
-        </div>
-      )}
+      {(!currentUser || !isOrganizer) && (() => {
+        const selfInList = currentUser && match.players.some(p => p.userId === currentUser.id);
+        return (
+          <div className="glass-panel" style={{ marginBottom: '1.5rem', border: '1px solid var(--color-primary)', background: 'rgba(69, 242, 72, 0.05)', display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.25rem' }}>
+             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <Shield size={24} color="var(--color-primary)" />
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1rem' }}>
+                    {currentUser ? 'Modo Visitante' : 'Acesso Público'}
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    {selfInList
+                      ? 'Você está na lista. Clique em Sair para se remover.'
+                      : 'Confirme sua presença na lista abaixo.'}
+                  </p>
+                </div>
+             </div>
+             <div style={{ display: 'flex', gap: '0.5rem' }}>
+               {selfInList ? (
+                 <button className="btn-outline" style={{ padding: '0.5rem 1rem', fontSize: '0.8rem', borderColor: 'var(--color-danger)', color: 'var(--color-danger)' }}
+                   onClick={() => {
+                     if (window.confirm('Sair da lista desta pelada?')) {
+                       updateMatch(match.id, { players: match.players.filter(p => p.userId !== currentUser!.id) });
+                     }
+                   }}>
+                   🚪 Sair da Lista
+                 </button>
+               ) : (
+                 <button className="btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.8rem' }}
+                   onClick={() => {
+                     if (currentUser) {
+                       joinMatch(match.id, currentUser.id);
+                       setSuccessName(currentUser.name);
+                     } else {
+                       setGuestModal(true);
+                     }
+                   }}>
+                   ✅ Confirmar Presença
+                 </button>
+               )}
+             </div>
+          </div>
+        );
+      })()}
 
       <header style={{ marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
@@ -374,6 +376,22 @@ export const MatchDetail = () => {
                         <Trash2 size={16} />
                       </button>
                     </div>
+                  )}
+                  {/* visitor can only remove themselves */}
+                  {!isOrganizer && currentUser && player.userId === currentUser.id && (
+                    <button
+                      onClick={() => {
+                        if (window.confirm('Sair da lista desta pelada?')) {
+                          updateMatch(match.id, { players: match.players.filter(p => p.userId !== currentUser.id) });
+                        }
+                      }}
+                      title="Sair da lista"
+                      style={{ background: 'transparent', color: 'var(--color-danger)', opacity: 0.7, padding: '4px', flexShrink: 0 }}
+                      onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                      onMouseLeave={e => (e.currentTarget.style.opacity = '0.7')}
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   )}
                 </div>
               ))}
