@@ -119,7 +119,9 @@ export const Rankings = () => {
   );
 };
 
-const RankingCard = ({ title, icon, color, data, valKey, label }: { title: string, icon: React.ReactNode, color: string, data: any[], valKey: string, label: string }) => (
+type RankUser = { id: string; name: string; photoUrl?: string; goals: number; assists: number };
+
+const RankingCard = ({ title, icon, color, data, valKey, label }: { title: string, icon: React.ReactNode, color: string, data: RankUser[], valKey: keyof RankUser, label: string }) => (
   <div className="glass-panel fadeIn" style={{ borderTop: `4px solid ${color}`, padding: '1.5rem', borderRadius: 'var(--radius-lg)', position: 'relative', overflow: 'hidden' }}>
     <div style={{ position: 'absolute', top: 0, right: 0, width: '100px', height: '100px', background: `radial-gradient(circle at top right, ${color}11, transparent 70%)`, pointerEvents: 'none' }}></div>
     
@@ -137,7 +139,7 @@ const RankingCard = ({ title, icon, color, data, valKey, label }: { title: strin
           rank={i + 1} 
           name={u.name} 
           photoUrl={u.photoUrl} 
-          value={u[valKey]} 
+          value={u[valKey] as number} 
           label={label} 
           color={color} 
         />

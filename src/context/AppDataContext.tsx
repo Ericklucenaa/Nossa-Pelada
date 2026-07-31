@@ -20,6 +20,7 @@ export interface AppContextType extends AppState {
   updateUser: (userId: string, updates: Partial<User>) => void;
   removeUser: (userId: string) => void;
   addCourt: (court: Omit<Court, 'id'>) => void;
+  updateCourt: (courtId: string, updates: Partial<Omit<Court, 'id'>>) => void;
   addMatch: (match: Omit<Match, 'id' | 'stats'>) => void;
   updateMatch: (matchId: string, updates: Partial<Match>) => void;
   updateMatchPlayer: (matchId: string, playerId: string, updates: Partial<MatchPlayer>) => void;
@@ -260,6 +261,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }));
   };
 
+  const updateCourt: AppContextType['updateCourt'] = (courtId, updates) => {
+    setState((prev) => ({
+      ...prev,
+      courts: prev.courts.map(c => c.id === courtId ? { ...c, ...updates } : c),
+    }));
+  };
+
   const addMatch: AppContextType['addMatch'] = (matchData) => {
     const newMatch: Match = { ...matchData, id: createId(), stats: {} };
     const matchRef = doc(db, 'matches', newMatch.id);
@@ -416,6 +424,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           });
           const extraGks = gks.slice(numTeams);
           [...field, ...extraGks].forEach(e => assignToZone(e, 0, numTeams));
+        }
+
+        // Distribute confirmed guest players round-robin across existing teams
+        if (numTeams > 0) {
+          match.players
+            .filter(p => p.guestName && p.attendance === 'Confirmado')
+            .forEach((guest, i) => {
+              const targetTeam = TEAM_NAMES[i % numTeams];
+              const idx = updatedPlayers.findIndex(p => p.guestName === guest.guestName);
+              if (idx >= 0) updatedPlayers[idx].team = targetTeam;
+            });
         }
 
         const updatedMatch = { ...match, players: updatedPlayers };
@@ -761,6 +780,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         updateUser,
         removeUser,
         addCourt,
+        updateCourt,
         addMatch,
         updateMatch: updateMatchAndSync,
         updateMatchPlayer,

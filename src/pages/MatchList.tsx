@@ -6,7 +6,7 @@ import type { Match } from '../types';
 import { buildIsoFromDateAndTime, formatCurrencyBRL, parseMoneyInput, getNextMatchDate } from '../utils/format';
 
 export const MatchList = () => {
-  const { matches, addMatch, updateMatch } = useAppContext();
+  const { matches, courts, addMatch, updateMatch } = useAppContext();
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState<Match | null>(null);
 
@@ -29,7 +29,10 @@ export const MatchList = () => {
     setEditTarget(null);
   };
 
-  const getCourtLabel = (courtId: string) => courtId || 'Quadra não definida';
+  const getCourtLabel = (courtId: string) => {
+    const court = courts.find(c => c.id === courtId);
+    return court ? court.name : (courtId || 'Quadra não definida');
+  };
 
   const getDefaultEndTime = (dateIso: string) => {
     const date = new Date(dateIso);
@@ -73,7 +76,7 @@ export const MatchList = () => {
                 <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(0,0,0,0.7)', textTransform: 'uppercase' }}>{monthAbbr}</span>
               </div>
               {/* Main content + Actions container */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: window.innerWidth < 640 ? 'column' : 'row', minWidth: 0 }}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                 {/* Info Section */}
                 <div style={{ flex: 1, padding: '1rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: 0 }}>
                   {/* Title row */}
@@ -112,13 +115,13 @@ export const MatchList = () => {
                 <div 
                   style={{ 
                     display: 'flex', 
-                    flexDirection: window.innerWidth < 640 ? 'row' : 'column', 
+                    flexDirection: 'row', 
                     gap: '0.4rem', 
                     padding: '0.75rem 1.25rem', 
                     justifyContent: 'center', 
                     flexShrink: 0,
-                    borderTop: window.innerWidth < 640 ? '1px solid rgba(255,255,255,0.05)' : 'none',
-                    background: window.innerWidth < 640 ? 'rgba(0,0,0,0.1)' : 'transparent'
+                    borderTop: '1px solid rgba(255,255,255,0.05)',
+                    background: 'rgba(0,0,0,0.1)'
                   }} 
                   onClick={e => e.preventDefault()}
                 >
@@ -207,12 +210,12 @@ export const MatchList = () => {
               </div>
               <div style={{ marginBottom: '1.5rem' }}>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem' }}>Quadra</label>
-                <input
-                  name="courtId"
-                  className="input-base"
-                  defaultValue={editTarget?.courtId ?? ''}
-                  placeholder="Ex: Arena Soccer VIP"
-                />
+                <select name="courtId" className="input-base" defaultValue={editTarget?.courtId ?? ''} style={{ background: 'var(--color-surface)' }}>
+                  <option value="">Sem quadra definida</option>
+                  {courts.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
               </div>
               <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <input type="checkbox" name="isFixed" id="isFixed" style={{ width: '1.2rem', height: '1.2rem', accentColor: 'var(--color-primary)' }} defaultChecked={editTarget?.isFixed} />

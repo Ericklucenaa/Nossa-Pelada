@@ -2,7 +2,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Shield, ShieldAlert, BadgeDollarSign, CheckSquare, XSquare, Trash2, Share2 } from 'lucide-react';
 import { useAppContext } from '../context/useAppContext';
-import type { MatchPlayer, PaymentStatus, User, Position } from '../types';
+import type { AttendanceStatus, MatchPlayer, PaymentStatus, User, Position } from '../types';
 import { formatCurrencyBRL, getMonthKey } from '../utils/format';
 
 type MatchTab = 'lista' | 'financeiro' | 'times' | 'jogo';
@@ -11,6 +11,13 @@ type PlayerRow = MatchPlayer & {
   displayName: string;
   displayPosition: string;
   user?: User;
+};
+
+const attendanceColor = (status: AttendanceStatus): string => {
+  if (status === 'Confirmado') return 'var(--color-primary)';
+  if (status === 'De Fora') return 'var(--color-warning)';
+  if (status === 'Ausente') return 'var(--color-danger)';
+  return 'var(--text-muted)';
 };
 
 const TEAM_NAMES = ['1', '2', '3', '4', '5', '6', '7', '8'] as const;
@@ -277,7 +284,7 @@ export const MatchDetail = () => {
                         <span style={{ color: 'var(--color-primary)', fontSize: '0.75rem', marginLeft: '4px' }}>{player.displayPosition}</span> 
                         {player.user ? <span style={{ fontSize: '0.75rem', color: 'var(--color-accent)', marginLeft: '4px'}}>⭐ {player.user.overall || 50}</span> : <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.05)', padding: '1px 4px', borderRadius: '4px', marginLeft: '4px', color: 'var(--text-muted)' }}>Convidado</span>}
                       </h4>
-                      <p style={{ margin: 0, fontSize: '0.75rem', color: player.attendance === 'Confirmado' ? 'var(--color-primary)' : 'var(--color-danger)' }}>{player.attendance}</p>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: attendanceColor(player.attendance), fontWeight: 600 }}>{player.attendance}</p>
                     </div>
                   </div>
                   {currentUser && (
@@ -330,7 +337,16 @@ export const MatchDetail = () => {
                         </p>
                       </div>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button style={{ background: 'transparent', color: player.paymentStatus === 'Pago' ? 'var(--color-primary)' : 'var(--color-warning)' }} onClick={() => player.userId && handlePayment(player.userId, player.paymentStatus === 'Pago' ? 'Pendente' : 'Pago', player.paymentType === 'Mensalista')} title="Alterar Status">
+                          <button style={{ background: 'transparent', color: player.paymentStatus === 'Pago' ? 'var(--color-primary)' : 'var(--color-warning)' }} onClick={() => {
+                            const nextStatus: PaymentStatus = player.paymentStatus === 'Pago' ? 'Pendente' : 'Pago';
+                            if (player.userId) {
+                              handlePayment(player.userId, nextStatus, player.paymentType === 'Mensalista');
+                            } else if (player.guestName) {
+                              updateMatch(match.id, {
+                                players: match.players.map(p => p.guestName === player.guestName ? { ...p, paymentStatus: nextStatus } : p)
+                              });
+                            }
+                          }} title="Alterar Status">
                             <BadgeDollarSign size={20} />
                           </button>
                       </div>
@@ -497,7 +513,7 @@ export const MatchDetail = () => {
             <h3 style={{ marginBottom: '1rem' }}>Quitar Jogador</h3>
             <p className="text-muted" style={{ marginBottom: '2rem' }}>Escolha quem vai entrar no lugar deste jogador.</p>
             <div style={{ display: 'grid', gap: '1rem', marginBottom: '2rem' }}>
-              {playersFullData.filter((player) => player.attendance === 'De Fora').map((reserve) => (
+              {playersFullData.filter((player) => player.attendance === 'De Fora' && player.userId).map((reserve) => (
                 <button key={reserve.userId || reserve.guestName} className="btn-outline" onClick={() => confirmSwap(reserve.userId!)} style={{ justifyContent: 'space-between', padding: '1rem', width: '100%' }}>
                   {reserve.displayName} <span style={{ color: 'var(--text-muted)' }}>{reserve.displayPosition}</span>
                 </button>

@@ -1,5 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Home, Users, Calendar, DollarSign, Activity, LogOut, Sun, Moon } from 'lucide-react';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Home, Users, Calendar, DollarSign, Activity, LogOut, Sun, Moon, UserCircle2 } from 'lucide-react';
 import { useAppContext } from './context/useAppContext';
 import './App.css';
 
@@ -13,10 +13,12 @@ import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { Players } from './pages/Players';
 import { ForgotPassword } from './pages/ForgotPassword';
+import { Profile } from './pages/Profile';
 import { useState } from 'react';
 
 function TopBar() {
-  const { theme, toggleTheme, logout } = useAppContext();
+  const { theme, toggleTheme, logout, currentUser } = useAppContext();
+  const navigate = useNavigate();
   
   return (
     <header className="nav-bar">
@@ -27,6 +29,13 @@ function TopBar() {
         <button className="theme-toggle" onClick={toggleTheme}>
           {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
         </button>
+        {currentUser && (
+          <button className="theme-toggle" onClick={() => navigate('/profile')} title="Meu Perfil" style={{ overflow: 'hidden' }}>
+            {currentUser.photoUrl
+              ? <img src={currentUser.photoUrl} alt="avatar" style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
+              : <UserCircle2 size={20} />}
+          </button>
+        )}
         <button className="theme-toggle" style={{ color: 'var(--color-danger)' }} onClick={logout}>
           <LogOut size={20} />
         </button>
@@ -63,6 +72,7 @@ function MainApp() {
           <Route path="/courts" element={<Courts />} />
           <Route path="/players" element={<Players />} />
           <Route path="/finance" element={<Finance />} />
+          <Route path="/profile" element={<Profile />} />
         </Routes>
       </main>
       <BottomNav />
