@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MapPin, Info, Trash, Edit2 } from 'lucide-react';
+import { MapPin, Trash2, Edit2 } from 'lucide-react';
 import { useAppContext } from '../context/useAppContext';
 import { formatCurrencyBRL, parseMoneyInput } from '../utils/format';
 import type { Court } from '../types';
@@ -43,57 +43,66 @@ export const Courts = () => {
   };
 
   return (
-    <div className="courts-container" style={{ animation: 'fadeIn 0.5s ease-out' }}>
-      <header className="page-header" style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h1 className="text-gradient">Quadras</h1>
-          <p className="subtitle text-muted">Locais utilizados para os jogos.</p>
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <header className="page-header">
+        <h1>Quadras</h1>
         <button className="btn-primary" onClick={() => openModal(null)}>+ Nova Quadra</button>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {courts.map((court) => (
-          <div key={court.id} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', borderTop: '4px solid var(--color-primary)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><MapPin color="var(--color-primary)" /> {court.name}</h3>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button onClick={() => openModal(court)} style={{ background: 'transparent', color: 'var(--color-accent)' }} title="Editar"><Edit2 size={18} /></button>
-                <button onClick={() => handleDeleteCourt(court.id)} style={{ background: 'transparent', color: 'var(--color-danger)' }} title="Excluir"><Trash size={20} /></button>
+          <div key={court.id} className="panel" style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'var(--text-main)' }}>{court.name}</h3>
+                <p className="text-muted" style={{ margin: '3px 0 0', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <MapPin size={13} /> {court.address}
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                <button className="btn-ghost" style={{ width: '28px', height: '28px', padding: 0 }} onClick={() => openModal(court)} title="Editar">
+                  <Edit2 size={14} />
+                </button>
+                <button className="btn-ghost" style={{ width: '28px', height: '28px', padding: 0, color: 'var(--color-danger)' }} onClick={() => handleDeleteCourt(court.id)} title="Excluir">
+                  <Trash2 size={14} />
+                </button>
               </div>
             </div>
-            <p className="text-muted" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}><Info size={16} /> {court.address}</p>
-            <div style={{ marginTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span className="text-muted" style={{ fontSize: '0.8rem', textTransform: 'uppercase' }}>Valor / Hora</span>
-              <strong style={{ color: 'var(--color-primary)', fontSize: '1.25rem' }}>{formatCurrencyBRL(court.pricePerHour)}</strong>
+
+            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
+              <span className="text-muted">Valor / Hora:</span>
+              <strong style={{ color: 'var(--color-primary-text)', fontSize: '13px' }}>{formatCurrencyBRL(court.pricePerHour)}</strong>
             </div>
           </div>
         ))}
+
         {courts.length === 0 && (
-          <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center' }}>
-            <p className="text-muted">Nenhuma quadra cadastrada. Adicione a primeira!</p>
+          <div className="panel" style={{ padding: '24px', textAlign: 'center' }}>
+            <p className="text-muted" style={{ margin: 0 }}>Nenhuma quadra cadastrada.</p>
           </div>
         )}
       </div>
 
       {showModal && (
-        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="glass-panel p-6" style={{ padding: '2rem', width: '100%', maxWidth: '400px' }}>
-            <h2 style={{ marginBottom: '1.5rem' }}>{editTarget ? 'Editar Quadra' : 'Cadastrar Quadra'}</h2>
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h2 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '14px' }}>
+              {editTarget ? 'Editar Quadra' : 'Cadastrar Quadra'}
+            </h2>
             <form onSubmit={handleSubmit}>
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem' }}>Nome da Quadra</label>
-                <input name="name" className="input-base" defaultValue={editTarget?.name ?? ''} required />
+              <div style={{ marginBottom: '10px' }}>
+                <label className="input-label">Nome da Quadra</label>
+                <input name="name" className="input-base" defaultValue={editTarget?.name ?? ''} required placeholder="Ex: Arena Society" />
               </div>
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem' }}>Endereço</label>
-                <input name="address" className="input-base" defaultValue={editTarget?.address ?? ''} required />
+              <div style={{ marginBottom: '10px' }}>
+                <label className="input-label">Endereço</label>
+                <input name="address" className="input-base" defaultValue={editTarget?.address ?? ''} required placeholder="Ex: Rua das Flores, 123" />
               </div>
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem' }}>Preço por Hora</label>
-                <input name="price" type="number" min="0" step="0.01" className="input-base" defaultValue={editTarget?.pricePerHour ?? ''} required />
+              <div style={{ marginBottom: '14px' }}>
+                <label className="input-label">Preço por Hora (R$)</label>
+                <input name="price" type="number" min="0" step="0.01" className="input-base" defaultValue={editTarget?.pricePerHour ?? ''} required placeholder="Ex: 120" />
               </div>
-              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                 <button type="button" className="btn-outline" onClick={() => { setShowModal(false); setEditTarget(null); }}>Cancelar</button>
                 <button type="submit" className="btn-primary">{editTarget ? 'Salvar' : 'Cadastrar'}</button>
               </div>

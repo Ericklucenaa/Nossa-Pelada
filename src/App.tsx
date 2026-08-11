@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Users, Calendar, DollarSign, Activity, LogOut, Sun, Moon, UserCircle2 } from 'lucide-react';
+import { Home, Users, Calendar, DollarSign, Activity, LogOut, Sun, Moon, UserCircle2, Loader } from 'lucide-react';
 import { useAppContext } from './context/useAppContext';
 import './App.css';
 
@@ -23,21 +23,21 @@ function TopBar() {
   return (
     <header className="nav-bar">
       <div className="nav-brand">
-        <span className="text-gradient brand-title" style={{ textTransform: 'uppercase' }}>Nossa Pelada</span>
+        <span className="brand-title">Nossa Pelada</span>
       </div>
-      <div style={{ display: 'flex', gap: '0.5rem' }}>
-        <button className="theme-toggle" onClick={toggleTheme}>
-          {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+      <div className="nav-actions">
+        <button className="header-btn" onClick={toggleTheme} title="Alternar tema">
+          {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
         </button>
         {currentUser && (
-          <button className="theme-toggle" onClick={() => navigate('/profile')} title="Meu Perfil" style={{ overflow: 'hidden' }}>
+          <button className="header-btn" onClick={() => navigate('/profile')} title="Meu Perfil" style={{ overflow: 'hidden' }}>
             {currentUser.photoUrl
-              ? <img src={currentUser.photoUrl} alt="avatar" style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
-              : <UserCircle2 size={20} />}
+              ? <img src={currentUser.photoUrl} alt="avatar" style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover' }} />
+              : <UserCircle2 size={16} />}
           </button>
         )}
-        <button className="theme-toggle" style={{ color: 'var(--color-danger)' }} onClick={logout}>
-          <LogOut size={20} />
+        <button className="header-btn" style={{ color: 'var(--color-danger)' }} onClick={logout} title="Sair">
+          <LogOut size={16} />
         </button>
       </div>
     </header>
@@ -50,11 +50,11 @@ function BottomNav() {
 
   return (
     <nav className="nav-links">
-      <Link to="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}><Home size={24} /> <span>Início</span></Link>
-      <Link to="/players" className={`nav-link ${isActive('/players') ? 'active' : ''}`}><Users size={24} /> <span>Jogadores</span></Link>
-      <Link to="/matches" className={`nav-link ${isActive('/matches') ? 'active' : ''}`}><Calendar size={24} /> <span>Peladas</span></Link>
-      <Link to="/rankings" className={`nav-link ${isActive('/rankings') ? 'active' : ''}`}><Activity size={24} /> <span>Rankings</span></Link>
-      <Link to="/finance" className={`nav-link ${isActive('/finance') ? 'active' : ''}`}><DollarSign size={24} /> <span>Finanças</span></Link>
+      <Link to="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}><Home size={18} /> <span>Início</span></Link>
+      <Link to="/players" className={`nav-link ${isActive('/players') ? 'active' : ''}`}><Users size={18} /> <span>Jogadores</span></Link>
+      <Link to="/matches" className={`nav-link ${isActive('/matches') ? 'active' : ''}`}><Calendar size={18} /> <span>Peladas</span></Link>
+      <Link to="/rankings" className={`nav-link ${isActive('/rankings') ? 'active' : ''}`}><Activity size={18} /> <span>Rankings</span></Link>
+      <Link to="/finance" className={`nav-link ${isActive('/finance') ? 'active' : ''}`}><DollarSign size={18} /> <span>Finanças</span></Link>
     </nav>
   );
 }
@@ -89,24 +89,18 @@ function App() {
       <div style={{
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
-        minHeight: '100vh', gap: '1rem',
+        minHeight: '100vh', gap: '0.75rem',
         background: 'var(--color-bg)'
       }}>
-        <div style={{
-          width: 60, height: 60, borderRadius: '50%',
-          background: 'linear-gradient(135deg, var(--color-primary), var(--color-accent))',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '1.8rem', animation: 'pulse 1.5s ease-in-out infinite'
-        }}>⚽</div>
-        <p className="text-muted" style={{ fontSize: '0.9rem' }}>Carregando...</p>
-        <style>{`@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.7;transform:scale(0.92)} }`}</style>
+        <Loader size={24} className="spin" style={{ color: 'var(--color-primary)' }} />
+        <p className="text-muted" style={{ fontSize: '0.8rem' }}>Carregando...</p>
       </div>
     );
   }
 
   return (
     <Router>
-      <div className="app-container" style={{ minHeight: '100vh' }}>
+      <div className="app-container">
         <Routes>
           {/* Public Routes - MatchDetail is key for WhatsApp links */}
           <Route path="/matches/:id" element={

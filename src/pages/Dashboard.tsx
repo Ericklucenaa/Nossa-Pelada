@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { useAppContext } from '../context/useAppContext';
-import { Users, Calendar, Trophy, Activity, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getNextMatchDate } from '../utils/format';
 
@@ -22,73 +21,101 @@ export const Dashboard = () => {
   }, [matches, currentUser]);
 
   return (
-    <div className="dashboard-container" style={{ animation: 'fadeIn 0.5s ease-out', paddingBottom: '2rem' }}>
-      <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2.5rem' }}>
-        <div>
-          <h1 className="text-gradient" style={{ fontSize: '2.5rem', fontWeight: 800 }}>Resumo da Rodada</h1>
-          <p className="subtitle" style={{ margin: 0, color: 'var(--text-muted)', fontSize: '1.1rem' }}>Seja Bem-vindo, <strong>{currentUser?.name}</strong></p>
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <header className="page-header">
+        <h1>Visão Geral</h1>
       </header>
 
-      <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1.2rem', marginBottom: '2.5rem' }}>
-        <StatCard title="Jogadores" value={users.length.toString()} icon={<Users />} to="/players" />
-        <StatCard title="Rankings" value="Geral" icon={<Trophy />} to="/rankings" highlight />
-        <StatCard title="Peladas" value={`${matches.length} Jogos`} icon={<Calendar />} to="/matches" />
-        <StatCard title="Finanças" value="Fluxo" icon={<Activity />} to="/finance" />
-        <StatCard title="Quadras" value={`${courts.length}`} icon={<MapPin />} to="/courts" />
+      {/* Quick Metrics Bar */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+        <Link to="/matches" className="panel" style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Peladas</span>
+          <span style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.2 }}>{matches.length}</span>
+        </Link>
+        <Link to="/players" className="panel" style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Jogadores</span>
+          <span style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.2 }}>{users.length}</span>
+        </Link>
+        <Link to="/courts" className="panel" style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Quadras</span>
+          <span style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.2 }}>{courts.length}</span>
+        </Link>
+        <Link to="/rankings" className="panel" style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Rankings</span>
+          <span style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-primary)', lineHeight: 1.2 }}>Geral</span>
+        </Link>
       </div>
 
-      {currentUser && (
-        <section className="glass-panel" style={{ padding: '1.5rem', marginBottom: '1.5rem', borderLeft: '5px solid var(--color-primary)', display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: '140px' }}>
-            <p style={{ margin: 0, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)', fontWeight: 700 }}>Suas Stats</p>
-            <p style={{ margin: '0.3rem 0 0', fontSize: '0.9rem', fontWeight: 600 }}>{currentUser.name}</p>
+      {/* Next Match Section */}
+      <section className="panel" style={{ padding: '14px 16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted)', fontWeight: 700 }}>
+            Próxima Pelada
+          </span>
+          {nextMatch && (
+            <span className="badge badge-primary">Agendada</span>
+          )}
+        </div>
+
+        {nextMatch ? (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+            <div style={{ minWidth: 0 }}>
+              <h3 style={{ fontSize: '14px', fontWeight: 600, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {nextMatch.name}
+              </h3>
+              <p className="text-muted" style={{ margin: '2px 0 0', fontSize: '12px' }}>
+                {new Date(nextMatch.dynamicDate).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })} • {new Date(nextMatch.dynamicDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </p>
+            </div>
+            <Link to={`/matches/${nextMatch.id}`} className="btn-primary" style={{ flexShrink: 0 }}>
+              Acessar
+            </Link>
           </div>
-          <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-            <Pill emoji="⚽" label="Gols" value={currentUser.goals} />
-            <Pill emoji="🎯" label="Assists" value={currentUser.assists} />
-            <Pill emoji="📅" label="Jogos" value={playerMatches} />
-            <Pill emoji="⭐" label="Overall" value={currentUser.overall || 50} />
+        ) : (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <p className="text-muted" style={{ margin: 0, fontSize: '13px' }}>Nenhuma pelada agendada.</p>
+            <Link to="/matches" className="btn-outline" style={{ height: '30px', fontSize: '12px', padding: '0 10px' }}>
+              Criar pelada
+            </Link>
+          </div>
+        )}
+      </section>
+
+      {/* User Stats Section */}
+      {currentUser && (
+        <section className="panel" style={{ padding: '14px 16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <div>
+              <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted)', fontWeight: 700 }}>
+                Suas Estatísticas
+              </span>
+              <p style={{ margin: 0, fontSize: '13px', fontWeight: 600 }}>{currentUser.name}</p>
+            </div>
+            <Link to="/profile" className="btn-ghost" style={{ height: '28px', fontSize: '12px', padding: '0 6px' }}>
+              Ver perfil
+            </Link>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', textAlign: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '10px' }}>
+            <div>
+              <span style={{ display: 'block', fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.2 }}>{currentUser.goals}</span>
+              <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)' }}>Gols</span>
+            </div>
+            <div>
+              <span style={{ display: 'block', fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.2 }}>{currentUser.assists}</span>
+              <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)' }}>Assists</span>
+            </div>
+            <div>
+              <span style={{ display: 'block', fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.2 }}>{playerMatches}</span>
+              <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)' }}>Jogos</span>
+            </div>
+            <div>
+              <span style={{ display: 'block', fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-primary)', lineHeight: 1.2 }}>{currentUser.overall || 50}</span>
+              <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)' }}>Overall</span>
+            </div>
           </div>
         </section>
       )}
-
-      <section className="glass-panel" style={{ padding: '1.8rem', borderLeft: '5px solid var(--color-accent)' }}>
-        <h2 style={{ marginBottom: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>📅 Sua Próxima Pelada</h2>
-        {nextMatch ? (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-            <div>
-              <h3 style={{ margin: '0 0 0.3rem 0', fontSize: '1.4rem' }}>{nextMatch.name}</h3>
-              <p className="text-muted" style={{ margin: 0 }}>{new Date(nextMatch.dynamicDate).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-            </div>
-            <Link to={`/matches/${nextMatch.id}`} className="btn-primary">Ver Detalhes</Link>
-          </div>
-        ) : (
-          <p className="text-muted" style={{ margin: 0 }}>Nenhuma Pelada agendada. <Link to="/matches" style={{ color: 'var(--color-primary)' }}>Criar uma!</Link></p>
-        )}
-      </section>
     </div>
   );
-};
-
-const Pill = ({ emoji, label, value }: { emoji: string; label: string; value: number }) => (
-  <div style={{ textAlign: 'center' }}>
-    <span style={{ display: 'block', fontSize: '1.4rem' }}>{emoji}</span>
-    <span style={{ display: 'block', fontSize: '1.1rem', fontWeight: 800, lineHeight: 1 }}>{value}</span>
-    <span style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</span>
-  </div>
-);
-
-const StatCard = ({ title, value, icon, to, highlight = false }: { title: string, value: string, icon: React.ReactNode, to?: string, highlight?: boolean }) => {
-  const CardContent = (
-    <div className={`glass-panel stat-card ${highlight ? 'highlight' : ''}`} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', border: highlight ? '1px solid var(--color-primary)' : '', height: '100%', cursor: to ? 'pointer' : 'default', transition: 'transform 0.2s', textDecoration: 'none', color: 'inherit' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: highlight ? 'var(--color-primary)' : 'var(--text-muted)' }}>
-        {icon}
-        <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{title}</span>
-      </div>
-      <div style={{ fontSize: '1.8rem', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
-    </div>
-  );
-
-  return to ? <Link to={to} style={{ textDecoration: 'none', color: 'inherit' }}>{CardContent}</Link> : CardContent;
 };

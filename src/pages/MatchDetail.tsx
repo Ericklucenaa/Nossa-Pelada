@@ -1,6 +1,6 @@
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Shield, ShieldAlert, BadgeDollarSign, CheckSquare, XSquare, Trash2, Share2 } from 'lucide-react';
+import { CheckSquare, XSquare, Trash2, Share2, Copy, UserPlus, RotateCcw } from 'lucide-react';
 import { useAppContext } from '../context/useAppContext';
 import type { AttendanceStatus, MatchPlayer, PaymentStatus, User, Position } from '../types';
 import { formatCurrencyBRL, getMonthKey } from '../utils/format';
@@ -14,7 +14,7 @@ type PlayerRow = MatchPlayer & {
 };
 
 const attendanceColor = (status: AttendanceStatus): string => {
-  if (status === 'Confirmado') return 'var(--color-primary)';
+  if (status === 'Confirmado') return 'var(--color-primary-text)';
   if (status === 'De Fora') return 'var(--color-warning)';
   if (status === 'Ausente') return 'var(--color-danger)';
   return 'var(--text-muted)';
@@ -25,11 +25,10 @@ const TEAM_NAMES = ['1', '2', '3', '4', '5', '6', '7', '8'] as const;
 export const MatchDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { matches, users, courts, updateMatchPlayer, updateMatch, drawTeams, setMatchStats, swapPlayers, joinMatch, joinMatchGuest, removeMatch, currentUser, listenPublicMatch, updateUser } = useAppContext();
+  const { matches, users, courts, updateMatchPlayer, updateMatch, drawTeams, setMatchStats, joinMatch, joinMatchGuest, removeMatch, currentUser, listenPublicMatch, updateUser } = useAppContext();
   const location = useLocation();
   const initialTab = (location.hash.replace('#', '') as MatchTab) || 'lista';
   const [activeTab, setActiveTab] = useState<MatchTab>((['lista','jogo','financeiro','times'] as MatchTab[]).includes(initialTab) ? initialTab : 'lista');
-  const [swapModal, setSwapModal] = useState<{ active: boolean; idToSwap: string | null }>({ active: false, idToSwap: null });
   const [addPlayerModal, setAddPlayerModal] = useState(false);
   const [guestModal, setGuestModal] = useState(false);
   const [drawOptions, setDrawOptions] = useState({ useMensalista: true, useArrival: false });
@@ -39,7 +38,6 @@ export const MatchDetail = () => {
   const match = matches.find((candidate) => candidate.id === id);
   const matchUsers = match?.organizerPlayers || users;
 
-  // Strict check: only the recorded creator can manage; old matches get migrated on organizer's next login
   const isOrganizer = currentUser != null && match?.organizerId === currentUser.id;
   const organizerUser = match?.organizerPlayers?.find(u => u.id === match.organizerId)
     ?? users.find(u => u.id === match?.organizerId);
@@ -72,15 +70,20 @@ export const MatchDetail = () => {
 
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: '1rem' }}>
-        <div style={{ width: 50, height: 50, border: '4px solid var(--color-surface-light)', borderTopColor: 'var(--color-primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-        <p className="text-muted">Buscando pelada...</p>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: '0.75rem' }}>
+        <div style={{ width: 32, height: 32, border: '3px solid var(--border-color)', borderTopColor: 'var(--color-primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}></div>
+        <p className="text-muted" style={{ fontSize: '12px' }}>Carregando pelada...</p>
       </div>
     );
   }
 
-  if (!match) return <div style={{ padding: '2rem', textAlign: 'center' }} className="glass-panel"><h2 style={{ color: 'var(--color-danger)' }}>Pelada não encontrada</h2><p className="text-muted">O link pode estar expirado ou incorreto.</p><button className="btn-primary" onClick={() => navigate('/')} style={{ marginTop: '1rem' }}>Ir para o Início</button></div>;
+  if (!match) return (
+    <div style={{ padding: '24px', textAlign: 'center' }} className="panel">
+      <h2 style={{ color: 'var(--color-danger)', fontSize: '16px', marginBottom: '6px' }}>Pelada não encontrada</h2>
+      <p className="text-muted" style={{ fontSize: '13px', marginBottom: '14px' }}>O link pode estar expirado ou incorreto.</p>
+      <button className="btn-primary" onClick={() => navigate('/')}>Ir para o Início</button>
+    </div>
+  );
 
   const handleUpdateStatus = (playerId: string | undefined, guestName: string | undefined, status: MatchPlayer['attendance']) => {
     if (playerId) {
@@ -148,13 +151,6 @@ export const MatchDetail = () => {
     .filter((player) => player.paymentStatus === 'Pendente')
     .reduce((sum, player) => sum + (player.paymentType === 'Mensalista' ? match.valorMensal ?? 0 : match.valorAvulso ?? 0), 0);
 
-  const confirmSwap = (playerInId: string) => {
-    if (swapModal.idToSwap) {
-      swapPlayers(match.id, swapModal.idToSwap, playerInId);
-    }
-    setSwapModal({ active: false, idToSwap: null });
-  };
-
   const handleClearList = () => {
     if (window.confirm('Esvaziar lista de presença? Isso removerá todos os jogadores registrados nesta pelada.')) {
       updateMatch(match.id, { players: [] });
@@ -176,7 +172,7 @@ export const MatchDetail = () => {
     const date = new Date(match.date).toLocaleDateString('pt-BR');
     const time = new Date(match.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     
-    return `⚽ *CONVOCAÇÃO: ${match.name.toUpperCase()}*\n📍 ${courtName} • 📅 ${date} • 🕐 ${time}\n\nFala galera! Clique no link abaixo para confirmar sua presença:\n\n👉 ${getShareLink()}`;
+    return `*${match.name.toUpperCase()}*\nLocal: ${courtName}\nData: ${date} às ${time}\n\nConfirme sua presença no link:\n${getShareLink()}`;
   };
 
   const handleShare = () => {
@@ -185,20 +181,19 @@ export const MatchDetail = () => {
 
   const handleCopyToClipboard = () => {
     navigator.clipboard.writeText(getShareLink());
-    window.alert('Link copiado para a área de transferência! Cole no WhatsApp.');
+    window.alert('Link copiado para a área de transferência!');
   };
 
   return (
-    <div className="match-detail" style={{ animation: 'fadeIn 0.5s ease-out' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
       {/* Success modal after joining */}
       {successName && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-          <div className="glass-panel" style={{ maxWidth: 380, width: '100%', padding: '2.5rem 2rem', textAlign: 'center', animation: 'fadeIn 0.3s ease-out', border: '1px solid var(--color-primary)' }}>
-            <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>✅</div>
-            <h2 style={{ marginBottom: '0.5rem' }}>Presença Confirmada!</h2>
-            <p className="text-muted" style={{ marginBottom: '2rem' }}><strong>{successName}</strong> foi adicionado(a) à lista da pelada.</p>
-            <button className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setSuccessName(null)}>Ver Lista</button>
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ textAlign: 'center', padding: '24px 16px' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '6px' }}>Presença Confirmada</h2>
+            <p className="text-muted" style={{ marginBottom: '16px', fontSize: '13px' }}><strong>{successName}</strong> foi adicionado à lista da pelada.</p>
+            <button className="btn-primary" style={{ width: '100%' }} onClick={() => setSuccessName(null)}>Ver Lista</button>
           </div>
         </div>
       )}
@@ -207,177 +202,198 @@ export const MatchDetail = () => {
       {(!currentUser || !isOrganizer) && (() => {
         const selfInList = currentUser && match.players.some(p => p.userId === currentUser.id);
         return (
-          <div className="glass-panel" style={{ marginBottom: '1.5rem', border: '1px solid var(--color-primary)', background: 'rgba(69, 242, 72, 0.05)', display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.25rem' }}>
-             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <Shield size={24} color="var(--color-primary)" />
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1rem' }}>
-                    {currentUser ? 'Modo Visitante' : 'Acesso Público'}
-                  </h3>
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    {selfInList
-                      ? 'Você está na lista. Clique em Sair para se remover.'
-                      : 'Confirme sua presença na lista abaixo.'}
-                  </p>
-                </div>
-             </div>
-             <div style={{ display: 'flex', gap: '0.5rem' }}>
-               {selfInList ? (
-                 <button className="btn-outline" style={{ padding: '0.5rem 1rem', fontSize: '0.8rem', borderColor: 'var(--color-danger)', color: 'var(--color-danger)' }}
-                   onClick={() => {
-                     if (window.confirm('Sair da lista desta pelada?')) {
-                       updateMatch(match.id, { players: match.players.filter(p => p.userId !== currentUser!.id) });
-                     }
-                   }}>
-                   🚪 Sair da Lista
-                 </button>
-               ) : (
-                 <button className="btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.8rem' }}
-                   onClick={() => {
-                     if (currentUser) {
-                       joinMatch(match.id, currentUser.id);
-                       setSuccessName(currentUser.name);
-                     } else {
-                       setGuestModal(true);
-                     }
-                   }}>
-                   ✅ Confirmar Presença
-                 </button>
-               )}
-             </div>
+          <div className="panel" style={{ padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', background: 'var(--color-surface-hover)' }}>
+            <div>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)' }}>
+                {currentUser ? 'Modo Participante' : 'Acesso Público'}
+              </span>
+              <p className="text-muted" style={{ margin: 0, fontSize: '11px' }}>
+                {selfInList ? 'Você está confirmado na lista.' : 'Confirme sua presença abaixo.'}
+              </p>
+            </div>
+            <div>
+              {selfInList ? (
+                <button className="btn-danger" style={{ height: '30px', fontSize: '12px', padding: '0 10px' }}
+                  onClick={() => {
+                    if (window.confirm('Sair da lista desta pelada?')) {
+                      updateMatch(match.id, { players: match.players.filter(p => p.userId !== currentUser!.id) });
+                    }
+                  }}>
+                  Sair da Lista
+                </button>
+              ) : (
+                <button className="btn-primary" style={{ height: '30px', fontSize: '12px', padding: '0 12px' }}
+                  onClick={() => {
+                    if (currentUser) {
+                      joinMatch(match.id, currentUser.id);
+                      setSuccessName(currentUser.name);
+                    } else {
+                      setGuestModal(true);
+                    }
+                  }}>
+                  Confirmar Presença
+                </button>
+              )}
+            </div>
           </div>
         );
       })()}
 
-      <header style={{ marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
+      {/* Header Info */}
+      <div className="panel" style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', flexWrap: 'wrap' }}>
           <div style={{ minWidth: 0, flex: 1 }}>
-            <h1 className="text-gradient" style={{ fontSize: 'clamp(1.5rem, 5vw, 2.5rem)', marginBottom: '0.25rem', wordBreak: 'break-word' }}>{match.name}</h1>
-            <p className="subtitle" style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-              {new Date(match.date).toLocaleDateString('pt-BR')} das {new Date(match.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} às {match.endTime ? new Date(match.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'} | Confirmados: {confirmedCount} | Reservas: {subsCount}
+            <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>{match.name}</h1>
+            <p className="text-muted" style={{ margin: '3px 0 0', fontSize: '12px' }}>
+              {new Date(match.date).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })} às {new Date(match.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}{match.endTime ? ` – ${new Date(match.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''} • Confirmados: <strong>{confirmedCount}</strong> {subsCount > 0 && `(Reservas: ${subsCount})`}
             </p>
             {organizerUser && (
-              <p style={{ margin: '0.3rem 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                👤 Organizado por <strong style={{ color: 'var(--color-primary)' }}>{organizerUser.name}</strong>
+              <p className="text-muted" style={{ margin: '2px 0 0', fontSize: '11px' }}>
+                Organizado por: <strong>{organizerUser.name}</strong>
               </p>
             )}
           </div>
-          <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            {isOrganizer && (
-              <>
-                <button className="btn-primary" style={{ fontSize: '0.75rem', padding: '0.5rem 0.8rem' }} onClick={() => setAddPlayerModal(true)}>+ Jogador</button>
-                <button className="btn-outline" style={{ fontSize: '0.75rem', padding: '0.5rem 0.8rem', borderColor: '#25D366', color: '#25D366' }} onClick={handleShare}>
-                  <Share2 size={14} style={{ marginRight: '4px' }}/> Whats
-                </button>
-                <button className="btn-outline" style={{ fontSize: '0.75rem', padding: '0.5rem 0.8rem' }} onClick={handleCopyToClipboard} title="Copiar Link">
-                  📋 Copiar Link
-                </button>
-                <button className="btn-outline" style={{ fontSize: '0.75rem', padding: '0.5rem 0.8rem', borderColor: 'var(--color-danger)', color: 'var(--color-danger)' }} onClick={handleDeleteMatch}>Excluir</button>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
 
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem', background: 'var(--color-surface-light)', padding: '0.375rem', borderRadius: '14px', width: 'fit-content' }}>
+          {isOrganizer && (
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              <button className="btn-primary" style={{ height: '30px', fontSize: '12px', padding: '0 8px' }} onClick={() => setAddPlayerModal(true)} title="Adicionar Atleta">
+                <UserPlus size={14} /> Atleta
+              </button>
+              <button className="btn-outline" style={{ height: '30px', fontSize: '12px', padding: '0 8px' }} onClick={handleShare} title="Compartilhar no WhatsApp">
+                <Share2 size={14} /> WhatsApp
+              </button>
+              <button className="btn-icon" style={{ width: '30px', height: '30px' }} onClick={handleCopyToClipboard} title="Copiar Link">
+                <Copy size={14} />
+              </button>
+              <button className="btn-ghost" style={{ width: '30px', height: '30px', padding: 0, color: 'var(--color-danger)' }} onClick={handleDeleteMatch} title="Excluir Pelada">
+                <Trash2 size={14} />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '4px', background: 'var(--color-surface)', padding: '3px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
         {([
-          { key: 'lista',      icon: '📋', label: 'Lista'      },
-          { key: 'times',      icon: '🛡️', label: 'Times'      },
-          { key: 'jogo',       icon: '⚽', label: 'Jogo'       },
-          { key: 'financeiro', icon: '💰', label: 'Financeiro' },
-        ] as { key: MatchTab; icon: string; label: string }[])
+          { key: 'lista', label: 'Lista' },
+          { key: 'times', label: 'Times' },
+          { key: 'jogo', label: 'Jogo' },
+          { key: 'financeiro', label: 'Financeiro' },
+        ] as { key: MatchTab; label: string }[])
         .filter(tab => isOrganizer || tab.key === 'lista')
-        .map(({ key, icon, label }) => (
+        .map(({ key, label }) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}
             style={{
-              padding: '0.6rem 1.1rem',
-              borderRadius: '10px',
-              background: activeTab === key
-                ? 'linear-gradient(135deg, var(--color-primary) 0%, #2ecc71 100%)'
-                : 'transparent',
-              color: activeTab === key ? '#0a0a0a' : 'var(--text-muted)',
-              fontWeight: 700,
-              fontSize: '0.82rem',
-              letterSpacing: '0.02em',
-              transition: 'all 0.2s ease',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.35rem',
-              boxShadow: activeTab === key ? '0 2px 12px rgba(69,242,72,0.35)' : 'none',
-              whiteSpace: 'nowrap',
+              flex: 1,
+              height: '30px',
+              borderRadius: 'var(--radius-sm)',
+              background: activeTab === key ? 'var(--color-primary)' : 'transparent',
+              color: activeTab === key ? '#ffffff' : 'var(--text-muted)',
+              fontWeight: activeTab === key ? 600 : 500,
+              fontSize: '12px',
+              transition: 'background-color 0.15s ease',
             }}
           >
-            <span>{icon}</span> {label}
+            {label}
           </button>
         ))}
       </div>
 
-      <div className="tab-content glass-panel" style={{ padding: '1.5rem', minHeight: '60vh', position: 'relative' }}>
+      {/* Tab Content */}
+      <div className="panel" style={{ padding: '14px 16px', minHeight: '300px' }}>
         {activeTab === 'lista' && (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', gap: '1rem' }}>
-              <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>Lista de Presença</h2>
-              {isOrganizer && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <h2 className="section-title">Presença ({playersFullData.length})</h2>
+              {isOrganizer && playersFullData.length > 0 && (
                 <button 
-                  className="btn-outline" 
-                  style={{ fontSize: '0.7rem', padding: '0.4rem 0.8rem', borderColor: 'var(--color-warning)', color: 'var(--color-warning)', textTransform: 'uppercase', letterSpacing: '0.5px' }} 
+                  className="btn-ghost" 
+                  style={{ height: '26px', fontSize: '11px', color: 'var(--color-danger)' }} 
                   onClick={handleClearList}
                 >
-                  Limpar Todos
+                  Limpar lista
                 </button>
               )}
             </div>
-            <div style={{ display: 'grid', gap: '1rem' }}>
-              {playersFullData.map((player, index) => (
-                <div key={player.userId || player.guestName} style={{ display: 'flex', gap: '0.5rem', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: index % 2 === 0 ? 'var(--color-surface-light)' : 'transparent', borderRadius: 'var(--radius-sm)', borderBottom: '1px solid var(--border-color)', overflow: 'hidden' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
-                    <div style={{ minWidth: 0 }}>
-                      <h4 style={{ margin: 0, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {player.displayName} 
-                        <span style={{ color: 'var(--color-primary)', fontSize: '0.75rem', marginLeft: '4px' }}>{player.displayPosition}</span> 
-                        {player.user ? (
-                          isOrganizer ? (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', marginLeft: '6px' }}>
-                              ⭐
-                              <input
-                                type="number" min={0} max={100}
-                                defaultValue={player.user.overall || 50}
-                                onBlur={e => {
-                                  const val = Math.max(0, Math.min(100, parseInt(e.target.value) || 50));
-                                  e.target.value = String(val);
-                                  if (player.userId) updateUser(player.userId, { overall: val });
-                                }}
-                                onClick={e => e.stopPropagation()}
-                                style={{ width: 38, fontSize: '0.72rem', padding: '1px 3px', borderRadius: 4, border: '1px solid var(--border-color)', background: 'var(--color-surface-light)', color: 'var(--color-accent)', fontWeight: 700, textAlign: 'center' }}
-                              />
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: '0.75rem', color: 'var(--color-accent)', marginLeft: '4px' }}>⭐ {player.user.overall || 50}</span>
-                          )
-                        ) : <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.05)', padding: '1px 4px', borderRadius: '4px', marginLeft: '4px', color: 'var(--text-muted)' }}>Convidado</span>}
-                      </h4>
-                      <p style={{ margin: 0, fontSize: '0.75rem', color: attendanceColor(player.attendance), fontWeight: 600 }}>{player.attendance}</p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {playersFullData.map((player) => (
+                <div
+                  key={player.userId || player.guestName}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border-color)',
+                    background: 'var(--color-surface)',
+                    gap: '8px',
+                  }}
+                >
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>{player.displayName}</span>
+                      <span className="badge badge-muted">{player.displayPosition}</span>
+                      {player.user ? (
+                        isOrganizer ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                            OVR:
+                            <input
+                              type="number" min={0} max={100}
+                              defaultValue={player.user.overall || 50}
+                              onBlur={e => {
+                                const val = Math.max(0, Math.min(100, parseInt(e.target.value) || 50));
+                                e.target.value = String(val);
+                                if (player.userId) updateUser(player.userId, { overall: val });
+                              }}
+                              style={{ width: 34, height: 20, fontSize: '11px', padding: '0 2px', borderRadius: 4, border: '1px solid var(--border-color)', background: 'var(--color-surface)', color: 'var(--text-main)', fontWeight: 600, textAlign: 'center' }}
+                            />
+                          </span>
+                        ) : (
+                          <span className="badge badge-primary">OVR {player.user.overall || 50}</span>
+                        )
+                      ) : (
+                        <span className="badge badge-muted">Convidado</span>
+                      )}
                     </div>
+                    <span style={{ fontSize: '11px', color: attendanceColor(player.attendance), fontWeight: 600, marginTop: '2px', display: 'inline-block' }}>
+                      {player.attendance}
+                    </span>
                   </div>
+
                   {isOrganizer && (
-                    <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center', flexShrink: 0 }}>
-                      <button onClick={() => handleUpdateStatus(player.userId, player.guestName, 'Confirmado')} title="Confirmado" style={{ background: 'transparent', color: player.attendance === 'Confirmado' ? 'var(--color-primary)' : 'var(--text-muted)', padding: '4px' }}><CheckSquare size={18} /></button>
-                      <button onClick={() => handleUpdateStatus(player.userId, player.guestName, 'Ausente')} title="Ausente" style={{ background: 'transparent', color: player.attendance === 'Ausente' ? 'var(--color-danger)' : 'var(--text-muted)', padding: '4px' }}><XSquare size={18} /></button>
-                      <div style={{ width: '1px', height: '20px', background: 'var(--border-color)', margin: '0 2px' }} />
+                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0 }}>
+                      <button
+                        onClick={() => handleUpdateStatus(player.userId, player.guestName, 'Confirmado')}
+                        title="Confirmar"
+                        className="btn-icon"
+                        style={{ width: '28px', height: '28px', color: player.attendance === 'Confirmado' ? 'var(--color-primary)' : 'var(--text-muted)' }}
+                      >
+                        <CheckSquare size={15} />
+                      </button>
+                      <button
+                        onClick={() => handleUpdateStatus(player.userId, player.guestName, 'Ausente')}
+                        title="Ausente"
+                        className="btn-icon"
+                        style={{ width: '28px', height: '28px', color: player.attendance === 'Ausente' ? 'var(--color-danger)' : 'var(--text-muted)' }}
+                      >
+                        <XSquare size={15} />
+                      </button>
                       <button
                         onClick={() => handleRemoveFromMatch(player.userId, player.guestName, player.displayName)}
-                        title="Remover da pelada"
-                        style={{ background: 'transparent', color: 'var(--color-danger)', opacity: 0.7, padding: '4px' }}
-                        onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
-                        onMouseLeave={e => (e.currentTarget.style.opacity = '0.7')}
+                        title="Remover"
+                        className="btn-ghost"
+                        style={{ width: '28px', height: '28px', padding: 0, color: 'var(--color-danger)' }}
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   )}
-                  {/* visitor can only remove themselves */}
+
                   {!isOrganizer && currentUser && player.userId === currentUser.id && (
                     <button
                       onClick={() => {
@@ -386,59 +402,124 @@ export const MatchDetail = () => {
                         }
                       }}
                       title="Sair da lista"
-                      style={{ background: 'transparent', color: 'var(--color-danger)', opacity: 0.7, padding: '4px', flexShrink: 0 }}
-                      onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
-                      onMouseLeave={e => (e.currentTarget.style.opacity = '0.7')}
+                      className="btn-ghost"
+                      style={{ height: '26px', fontSize: '11px', color: 'var(--color-danger)' }}
                     >
-                      <Trash2 size={16} />
+                      Sair
                     </button>
                   )}
                 </div>
               ))}
-              {playersFullData.length === 0 && <p className="text-muted text-center" style={{ padding: '2rem' }}>Ninguém na lista ainda. Seja o primeiro!</p>}
+
+              {playersFullData.length === 0 && (
+                <p className="text-muted" style={{ textAlign: 'center', padding: '24px 0', margin: 0 }}>
+                  Nenhum jogador confirmado na lista.
+                </p>
+              )}
             </div>
           </div>
         )}
 
-        {/* Other tabs remain largely similar but check for currentUser permissions */}
-        {activeTab === 'financeiro' && (
+        {activeTab === 'times' && (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-              <h2 style={{ margin: 0 }}>Status Financeiro</h2>
-              {currentUser && (
-                <div style={{ textAlign: 'right', background: 'var(--color-surface-light)', padding: '0.5rem 1rem', borderRadius: '8px' }}>
-                  <span style={{ display: 'block', fontSize: '0.9rem', color: 'var(--color-primary)', fontWeight: 'bold' }}>Recebido: {formatCurrencyBRL(totalPaid)}</span>
-                  <span style={{ display: 'block', fontSize: '0.9rem', color: 'var(--color-warning)', fontWeight: 'bold' }}>Pendente: {formatCurrencyBRL(totalPending)}</span>
-                </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h2 className="section-title">Escalação dos Times</h2>
+              {isOrganizer && (
+                <button className="btn-primary" style={{ height: '30px', fontSize: '12px' }} onClick={() => drawTeams(match.id, drawOptions)}>
+                  <RotateCcw size={13} /> Sortear Times
+                </button>
               )}
             </div>
+
+            {isOrganizer && (
+              <div style={{ background: 'var(--color-surface-hover)', padding: '10px 12px', borderRadius: 'var(--radius-md)', marginBottom: '14px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Configurações do Sorteio</span>
+                <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={drawOptions.useMensalista} onChange={(e) => setDrawOptions(p => ({ ...p, useMensalista: e.target.checked }))} style={{ accentColor: 'var(--color-primary)' }} />
+                    Mensalista Primeiro
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={drawOptions.useArrival} onChange={(e) => setDrawOptions(p => ({ ...p, useArrival: e.target.checked }))} style={{ accentColor: 'var(--color-primary)' }} />
+                    Ordem de Chegada
+                  </label>
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }}>
+              {TEAM_NAMES.filter((teamName) => playersFullData.some((player) => player.team === teamName)).map((teamName) => {
+                const teamPlayers = playersFullData.filter((player) => player.team === teamName);
+                const ovrAvg = teamPlayers.filter(p => p.user).length ? Math.round(teamPlayers.reduce((sum, p) => sum + (p.user?.overall || 50), 0) / teamPlayers.length) : '--';
+                return (
+                  <div key={teamName} className="panel" style={{ padding: '12px 14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-primary)' }}>
+                        Time {teamName}
+                      </span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                        Média OVR: <strong>{ovrAvg}</strong>
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {teamPlayers.map((player) => (
+                        <div key={player.userId || player.guestName} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', padding: '3px 0' }}>
+                          <span>{player.displayName}</span>
+                          <span className="badge badge-muted">{player.displayPosition}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              {playersFullData.every((player) => !player.team) && (
+                <p className="text-muted" style={{ textAlign: 'center', padding: '24px 0', margin: 0 }}>
+                  Times ainda não sorteados.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'jogo' && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h2 className="section-title">Estatísticas da Partida</h2>
+            </div>
+
             {!isOrganizer ? (
-              <p className="text-muted">Apenas o organizador pode visualizar detalhes financeiros.</p>
+              <p className="text-muted" style={{ fontSize: '13px' }}>Apenas o organizador pode registrar gols e assistências.</p>
             ) : (
-              <div style={{ display: 'grid', gap: '1rem' }}>
-                {financeRows.map((player, index) => {
-                  const playerCost = player.paymentType === 'Mensalista' ? match.valorMensal ?? 0 : match.valorAvulso ?? 0;
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {playingPlayers.map((player) => {
+                  const pid = player.userId || player.guestName!;
+                  const goals = match.stats?.[pid]?.goals || 0;
+                  const assists = match.stats?.[pid]?.assists || 0;
                   return (
-                    <div key={player.userId || player.guestName} style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: index % 2 === 0 ? 'var(--color-surface-light)' : 'transparent', borderRadius: 'var(--radius-sm)', borderBottom: '1px solid var(--border-color)' }}>
-                      <div>
-                        <h4 style={{ margin: 0 }}>{player.displayName}</h4>
-                        <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                          {player.paymentType} • {formatCurrencyBRL(playerCost)} • <span style={{ color: player.paymentStatus === 'Pago' ? 'var(--color-primary)' : 'var(--color-warning)', fontWeight: 700 }}>{player.paymentStatus}</span>
-                        </p>
+                    <div key={pid} className="panel" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', gap: '8px' }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <span style={{ fontSize: '13px', fontWeight: 600, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.displayName}</span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{player.displayPosition}</span>
                       </div>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button style={{ background: 'transparent', color: player.paymentStatus === 'Pago' ? 'var(--color-primary)' : 'var(--color-warning)' }} onClick={() => {
-                            const nextStatus: PaymentStatus = player.paymentStatus === 'Pago' ? 'Pendente' : 'Pago';
-                            if (player.userId) {
-                              handlePayment(player.userId, nextStatus, player.paymentType === 'Mensalista');
-                            } else if (player.guestName) {
-                              updateMatch(match.id, {
-                                players: match.players.map(p => p.guestName === player.guestName ? { ...p, paymentStatus: nextStatus } : p)
-                              });
-                            }
-                          }} title="Alterar Status">
-                            <BadgeDollarSign size={20} />
-                          </button>
+
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <div style={{ textAlign: 'center' }}>
+                          <span style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)' }}>GOLS</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                            <button className="btn-icon" style={{ width: '24px', height: '24px', fontSize: '12px' }} onClick={() => setMatchStats(match.id, pid, Math.max(0, goals - 1), assists)}>-</button>
+                            <span style={{ minWidth: '16px', textAlign: 'center', fontWeight: 700, fontSize: '13px' }}>{goals}</span>
+                            <button className="btn-icon" style={{ width: '24px', height: '24px', fontSize: '12px' }} onClick={() => setMatchStats(match.id, pid, goals + 1, assists)}>+</button>
+                          </div>
+                        </div>
+
+                        <div style={{ textAlign: 'center' }}>
+                          <span style={{ display: 'block', fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)' }}>ASSISTS</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                            <button className="btn-icon" style={{ width: '24px', height: '24px', fontSize: '12px' }} onClick={() => setMatchStats(match.id, pid, goals, Math.max(0, assists - 1))}>-</button>
+                            <span style={{ minWidth: '16px', textAlign: 'center', fontWeight: 700, fontSize: '13px' }}>{assists}</span>
+                            <button className="btn-icon" style={{ width: '24px', height: '24px', fontSize: '12px' }} onClick={() => setMatchStats(match.id, pid, goals, assists + 1)}>+</button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   );
@@ -448,82 +529,49 @@ export const MatchDetail = () => {
           </div>
         )}
 
-        {/* Teams tab updated to show display names */}
-        {activeTab === 'times' && (
+        {activeTab === 'financeiro' && (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-              <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}><ShieldAlert /> Escalação dos Times</h2>
-              {isOrganizer && <button className="btn-primary" onClick={() => drawTeams(match.id, drawOptions)}>Sortear Times</button>}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+              <h2 className="section-title">Financeiro da Pelada</h2>
+              {currentUser && (
+                <div style={{ display: 'flex', gap: '8px', fontSize: '12px' }}>
+                  <span className="badge badge-primary">Pago: {formatCurrencyBRL(totalPaid)}</span>
+                  <span className="badge badge-warning">Pendente: {formatCurrencyBRL(totalPending)}</span>
+                </div>
+              )}
             </div>
 
-            {isOrganizer && (
-              <div style={{ background: 'var(--color-surface-light)', padding: '1.2rem', borderRadius: 'var(--radius-md)', marginBottom: '2rem', display: 'flex', flexWrap: 'wrap', gap: '1.5rem', border: '1px solid var(--border-color)' }}>
-                <span style={{ width: '100%', fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Prioridades do Sorteio</span>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}><input type="checkbox" checked={drawOptions.useMensalista} onChange={(e) => setDrawOptions(p => ({ ...p, useMensalista: e.target.checked }))} /> <span>Mensalista Primeiro</span></label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}><input type="checkbox" checked={drawOptions.useArrival} onChange={(e) => setDrawOptions(p => ({ ...p, useArrival: e.target.checked }))} /> <span>Ordem de Chegada</span></label>
-                <p style={{ width: '100%', margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)' }}>⚖️ Overall sempre usado para equilibrar os times automaticamente.</p>
-              </div>
-            )}
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '2rem' }}>
-              {TEAM_NAMES.filter((teamName) => playersFullData.some((player) => player.team === teamName)).map((teamName, index) => {
-                const teamPlayers = playersFullData.filter((player) => player.team === teamName);
-                const ovrAvg = teamPlayers.filter(p => p.user).length ? Math.round(teamPlayers.reduce((sum, p) => sum + (p.user?.overall || 50), 0) / teamPlayers.length) : '--';
-                return (
-                  <div key={teamName} style={{ background: index % 2 === 0 ? 'rgba(69, 242, 72, 0.05)' : 'rgba(102, 252, 241, 0.05)', padding: '1.5rem', borderRadius: 'var(--radius-md)', border: index % 2 === 0 ? '1px solid rgba(69, 242, 72, 0.2)' : '1px solid rgba(102, 252, 241, 0.2)' }}>
-                    <h3 style={{ marginBottom: '1rem', color: index % 2 === 0 ? 'var(--color-primary)' : 'var(--color-accent)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Shield /> Time {teamName} {isOrganizer && `(OVR ${ovrAvg})`}</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      {teamPlayers.map((player) => (
-                        <div key={player.userId || player.guestName} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                          <span>{player.displayName} {player.displayPosition === 'Goleiro' && '🧤'}</span>
-                          <span style={{ fontWeight: 800 }}>{player.displayPosition}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-              {playersFullData.every((player) => !player.team) && <p className="text-muted text-center" style={{ marginTop: '2rem' }}>Times ainda não definidos.</p>}
-            </div>
-          </div>
-        )}
-
-        {/* Jogo tab updated */}
-        {activeTab === 'jogo' && (
-          <div>
-            <h2 style={{ margin: 0, marginBottom: '1.5rem' }}>Estatísticas</h2>
             {!isOrganizer ? (
-               <p className="text-muted">Apenas o organizador pode registrar gols e assistências.</p>
+              <p className="text-muted" style={{ fontSize: '13px' }}>Apenas o organizador pode gerenciar pagamentos.</p>
             ) : (
-              <div style={{ display: 'grid', gap: '0.75rem' }}>
-                {playingPlayers.map((player, index) => {
-                  const pid = player.userId || player.guestName!;
-                  const goals = match.stats?.[pid]?.goals || 0;
-                  const assists = match.stats?.[pid]?.assists || 0;
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {financeRows.map((player) => {
+                  const playerCost = player.paymentType === 'Mensalista' ? match.valorMensal ?? 0 : match.valorAvulso ?? 0;
+                  const isPaid = player.paymentStatus === 'Pago';
                   return (
-                    <div key={pid} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.875rem 1rem', background: index % 2 === 0 ? 'var(--color-surface-light)' : 'transparent', borderRadius: 'var(--radius-sm)', borderBottom: '1px solid var(--border-color)' }}>
-                      <div style={{ flex: 1 }}>
-                        <h4 style={{ margin: 0 }}>{player.displayName}</h4>
-                        <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>{player.displayPosition}</p>
+                    <div key={player.userId || player.guestName} className="panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', gap: '8px' }}>
+                      <div>
+                        <span style={{ fontSize: '13px', fontWeight: 600, display: 'block' }}>{player.displayName}</span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                          {player.paymentType} • {formatCurrencyBRL(playerCost)}
+                        </span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <div style={{ textAlign: 'center' }}>
-                          <span style={{ display: 'block', fontSize: '0.6rem', color: 'var(--color-primary)' }}>⚽ GOLS</span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                            <button onClick={() => setMatchStats(match.id, pid, Math.max(0, goals - 1), assists)}>-</button>
-                            <span style={{ fontWeight: 700 }}>{goals}</span>
-                            <button onClick={() => setMatchStats(match.id, pid, goals + 1, assists)}>+</button>
-                          </div>
-                        </div>
-                        <div style={{ textAlign: 'center' }}>
-                          <span style={{ display: 'block', fontSize: '0.6rem', color: 'var(--color-accent)' }}>🎯 ASSIST</span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                            <button onClick={() => setMatchStats(match.id, pid, goals, Math.max(0, assists - 1))}>-</button>
-                            <span style={{ fontWeight: 700 }}>{assists}</span>
-                            <button onClick={() => setMatchStats(match.id, pid, goals, assists + 1)}>+</button>
-                          </div>
-                        </div>
-                      </div>
+                      <button
+                        onClick={() => {
+                          const nextStatus: PaymentStatus = isPaid ? 'Pendente' : 'Pago';
+                          if (player.userId) {
+                            handlePayment(player.userId, nextStatus, player.paymentType === 'Mensalista');
+                          } else if (player.guestName) {
+                            updateMatch(match.id, {
+                              players: match.players.map(p => p.guestName === player.guestName ? { ...p, paymentStatus: nextStatus } : p)
+                            });
+                          }
+                        }}
+                        className={isPaid ? 'btn-primary' : 'btn-outline'}
+                        style={{ height: '28px', fontSize: '11px', padding: '0 8px' }}
+                      >
+                        {isPaid ? 'Pago' : 'Pendente'}
+                      </button>
                     </div>
                   );
                 })}
@@ -535,14 +583,14 @@ export const MatchDetail = () => {
 
       {/* Guest RSVP Modal */}
       {guestModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-          <div className="glass-panel" style={{ width: '100%', maxWidth: '450px', padding: '2rem', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h2 className="text-gradient">Confirmar Presença</h2>
-            <p className="text-muted" style={{ marginBottom: '1.5rem' }}>Selecione seu nome da lista ou adicione um novo.</p>
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h2 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '6px' }}>Confirmar Presença</h2>
+            <p className="text-muted" style={{ fontSize: '12px', marginBottom: '14px' }}>Selecione seu nome da lista ou adicione um novo convidado.</p>
             
-            <div style={{ display: 'grid', gap: '0.75rem', marginBottom: '1.5rem' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Jogadores Cadastrados</span>
-              <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'grid', gap: '0.5rem', paddingRight: '4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
+              <span className="input-label">Atletas Cadastrados</span>
+              <div style={{ maxHeight: '180px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 {matchUsers
                   .filter(u => !match.players.some(p => p.userId === u.id))
                   .sort((a,b) => a.name.localeCompare(b.name))
@@ -550,7 +598,7 @@ export const MatchDetail = () => {
                     <button 
                       key={u.id} 
                       className="btn-outline" 
-                      style={{ justifyContent: 'space-between', padding: '0.75rem 1rem', fontSize: '0.9rem' }}
+                      style={{ justifyContent: 'space-between', height: '34px', fontSize: '13px' }}
                       onClick={() => {
                         joinMatch(match.id, u.id);
                         setSuccessName(u.name);
@@ -558,15 +606,16 @@ export const MatchDetail = () => {
                         navigate(location.pathname, { replace: true });
                       }}
                     >
-                      {u.name} <span style={{ fontSize: '0.7rem', opacity: 0.7 }}>{u.position}</span>
+                      <span>{u.name}</span>
+                      <span className="badge badge-muted">{u.position}</span>
                     </button>
                   ))
                 }
               </div>
             </div>
 
-            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
-              <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '1rem' }}>Não está na lista? (Novo Convidado)</span>
+            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
+              <span className="input-label">Novo Convidado</span>
               <form onSubmit={(e) => {
                 e.preventDefault();
                 const target = e.target as typeof e.target & { name: { value: string }; pos: { value: Position } };
@@ -575,67 +624,53 @@ export const MatchDetail = () => {
                 setGuestModal(false);
                 navigate(location.pathname, { replace: true });
               }}>
-                <div style={{ marginBottom: '1rem' }}>
-                  <input name="name" className="input-base" placeholder="Seu Nome Completo" required />
+                <div style={{ marginBottom: '8px' }}>
+                  <input name="name" className="input-base" placeholder="Nome do Convidado" required />
                 </div>
-                <div style={{ marginBottom: '1.5rem', display: 'flex', gap: '0.5rem' }}>
-                  <select name="pos" className="input-base" style={{ background: 'var(--color-surface)', flex: 1 }}>
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
+                  <select name="pos" className="input-base" style={{ flex: 1 }}>
                     <option value="Linha">Linha</option>
                     <option value="Goleiro">Goleiro</option>
                   </select>
-                  <button type="submit" className="btn-primary" style={{ flex: 1.5 }}>Confirmar!</button>
+                  <button type="submit" className="btn-primary" style={{ flex: 1 }}>Confirmar</button>
                 </div>
               </form>
             </div>
 
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-              <button className="btn-outline" style={{ flex: 1 }} onClick={() => setGuestModal(false)}>Fechar</button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button className="btn-outline" onClick={() => setGuestModal(false)}>Fechar</button>
             </div>
-            
-            <div style={{ marginTop: '1.5rem', textAlign: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
-               <button className="btn-link" style={{ fontSize: '0.85rem' }} onClick={() => { setGuestModal(false); navigate('/'); }}>Já tem conta? Fazer Login</button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Swap Modal */}
-      {swapModal.active && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem' }}>
-          <div className="glass-panel" style={{ width: '100%', maxWidth: '400px', padding: '2rem' }}>
-            <h3 style={{ marginBottom: '1rem' }}>Quitar Jogador</h3>
-            <p className="text-muted" style={{ marginBottom: '2rem' }}>Escolha quem vai entrar no lugar deste jogador.</p>
-            <div style={{ display: 'grid', gap: '1rem', marginBottom: '2rem' }}>
-              {playersFullData.filter((player) => player.attendance === 'De Fora' && player.userId).map((reserve) => (
-                <button key={reserve.userId || reserve.guestName} className="btn-outline" onClick={() => confirmSwap(reserve.userId!)} style={{ justifyContent: 'space-between', padding: '1rem', width: '100%' }}>
-                  {reserve.displayName} <span style={{ color: 'var(--text-muted)' }}>{reserve.displayPosition}</span>
-                </button>
-              ))}
-              {playersFullData.filter((player) => player.attendance === 'De Fora').length === 0 && (
-                <p style={{ textAlign: 'center', color: 'var(--color-warning)' }}>Ninguém de Fora no momento.</p>
-              )}
-            </div>
-            <button className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setSwapModal({ active: false, idToSwap: null })}>Cancelar</button>
           </div>
         </div>
       )}
 
       {/* Add Regular Player Modal */}
       {addPlayerModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem', backdropFilter: 'blur(4px)' }}>
-          <div className="glass-panel" style={{ width: '95%', maxWidth: '650px', padding: '2.5rem', maxHeight: '85vh', overflowY: 'auto', background: 'var(--color-surface)', border: '1px solid var(--border-color)' }}>
-            <h3 style={{ marginBottom: '0.8rem', fontSize: '1.8rem', color: 'var(--color-primary)', fontWeight: 800 }}>Adicionar à Pelada</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h2 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '12px' }}>Adicionar à Pelada</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '300px', overflowY: 'auto', marginBottom: '14px' }}>
               {matchUsers.filter((user) => !match.players.some((player) => player.userId === user.id)).map((user) => (
-                <button key={user.id} className="btn-outline" onClick={() => joinMatch(match.id, user.id)} style={{ padding: '1.2rem', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontWeight: 700 }}>{user.name}</span>
-                    <span style={{ fontSize: '0.75rem', color: user.subscriptionType === 'Mensalista' ? 'var(--color-primary)' : 'var(--color-accent)' }}>{user.subscriptionType}</span>
+                <button
+                  key={user.id}
+                  className="btn-outline"
+                  onClick={() => joinMatch(match.id, user.id)}
+                  style={{ justifyContent: 'space-between', height: '36px', padding: '0 10px' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontWeight: 600 }}>{user.name}</span>
+                    <span className="badge badge-muted">{user.subscriptionType}</span>
                   </div>
-                  <span style={{ color: 'var(--text-muted)' }}>{user.position}</span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{user.position}</span>
                 </button>
               ))}
+              {matchUsers.filter((user) => !match.players.some((player) => player.userId === user.id)).length === 0 && (
+                <p className="text-muted" style={{ textAlign: 'center', padding: '16px 0', margin: 0 }}>Todos os atletas cadastrados já estão na lista.</p>
+              )}
             </div>
-            <button className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setAddPlayerModal(false)}>Fechar</button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn-primary" onClick={() => setAddPlayerModal(false)}>Fechar</button>
+            </div>
           </div>
         </div>
       )}

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { TrendingUp, Clock, ChevronLeft, ChevronRight, Calendar, Share2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Share2, X } from 'lucide-react';
 import { useAppContext } from '../context/useAppContext';
 import type { Match, MatchPlayer, PaymentStatus } from '../types';
 import { formatCurrencyBRL, formatMonthDisplay, getMonthKey } from '../utils/format';
@@ -119,32 +119,30 @@ export const Finance = () => {
   };
 
   const handleExportText = () => {
-    let text = `📊 *RESUMO FINANCEIRO - ${formatMonthDisplay(selectedMonth).toUpperCase()}*\n\n`;
+    let text = `*RESUMO FINANCEIRO - ${formatMonthDisplay(selectedMonth).toUpperCase()}*\n\n`;
 
     filteredMatches.forEach(match => {
       const matchEntries = entriesByMatch.get(match.id) ?? [];
       const dateStr = new Date(match.date).toLocaleDateString('pt-BR');
-      text += `⚽ *${match.name}* (${dateStr})\n`;
+      text += `*${match.name}* (${dateStr})\n`;
       
       const paid = matchEntries.filter(e => e.paymentStatus === 'Pago');
       const pending = matchEntries.filter(e => e.paymentStatus === 'Pendente');
 
       if (paid.length > 0) {
-        text += `✅ *PAGANTES:*\n`;
+        text += `Pagantes:\n`;
         paid.forEach(e => text += `- ${e.userName} (${e.paymentType})\n`);
       }
 
       if (pending.length > 0) {
-        text += `❌ *DEVEDORES:*\n`;
+        text += `Pendentes:\n`;
         pending.forEach(e => text += `- ${e.userName} (${e.paymentType})\n`);
       }
       text += `\n`;
     });
 
-    text += `━━━━━━━━━━━━━━━\n`;
-    text += `💰 *RECEBIDO:* ${formatCurrencyBRL(totalReceived)}\n`;
-    text += `📉 *PENDENTE:* ${formatCurrencyBRL(totalPending)}\n`;
-    text += `\n_Gerado por Nossa Pelada_`;
+    text += `Recebido: ${formatCurrencyBRL(totalReceived)}\n`;
+    text += `Pendente: ${formatCurrencyBRL(totalPending)}\n`;
 
     if (navigator.share) {
       navigator.share({ title: 'Resumo Financeiro', text }).catch(() => {
@@ -157,139 +155,146 @@ export const Finance = () => {
     }
   };
 
-
-
   return (
-    <div className="finance-container" style={{ animation: 'fadeIn 0.5s ease-out', paddingBottom: '3rem' }}>
-      <header className="page-header" style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h1 className="text-gradient" style={{ fontWeight: 800 }}>Finanças</h1>
-          <p className="subtitle text-muted">Controle de mensalidades e avulsos.</p>
-        </div>
-        
-        <div style={{ display: 'flex', gap: '0.8rem' }}>
-            <button 
-                onClick={handleExportText}
-                className="btn-outline"
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem', fontSize: '0.85rem' }}
-            >
-                <Share2 size={16} /> Relatório
-            </button>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'var(--color-surface)', padding: '0.5rem 1rem', borderRadius: '1rem', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-surface)', width: 'fit-content' }}>
-          <button onClick={() => shiftMonth(-1)} className="btn-icon" style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '50%', border: 'none', color: 'var(--text-main)', cursor: 'pointer' }}>
-            <ChevronLeft size={20} />
-          </button>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: '140px', justifyContent: 'center' }}>
-            <Calendar size={18} color="var(--color-primary)" />
-            <span style={{ fontSize: '1rem', fontWeight: 700, textTransform: 'capitalize' }}>{formatMonthDisplay(selectedMonth)}</span>
-          </div>
-
-          <button onClick={() => shiftMonth(1)} className="btn-icon" style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '50%', border: 'none', color: 'var(--text-main)', cursor: 'pointer' }}>
-            <ChevronRight size={20} />
-          </button>
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <header className="page-header">
+        <h1>Finanças</h1>
+        <button 
+          onClick={handleExportText}
+          className="btn-outline"
+          style={{ height: '32px', fontSize: '12px' }}
+        >
+          <Share2 size={14} /> Relatório
+        </button>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem', marginBottom: '3rem' }}>
-        <div className="glass-panel" style={{ padding: '1.5rem', borderLeft: '4px solid var(--color-primary)', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => setDetailModal('Pago')}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-            <div>
-              <p className="text-muted" style={{ textTransform: 'uppercase', fontSize: '0.8rem', fontWeight: 600 }}>Total Recebido (Clique p/ ver)</p>
-              <h2 style={{ fontSize: '2.5rem', color: 'var(--color-primary)' }}>{formatCurrencyBRL(totalReceived)}</h2>
-            </div>
-            <div style={{ background: 'rgba(69, 242, 72, 0.1)', padding: '0.5rem', borderRadius: '50%' }}>
-              <TrendingUp color="var(--color-primary)" />
-            </div>
-          </div>
+      {/* Month Navigator */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--color-surface)', padding: '6px 10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+        <button onClick={() => shiftMonth(-1)} className="btn-icon" style={{ width: '28px', height: '28px' }}>
+          <ChevronLeft size={16} />
+        </button>
+
+        <span style={{ fontSize: '13px', fontWeight: 600, textTransform: 'capitalize' }}>
+          {formatMonthDisplay(selectedMonth)}
+        </span>
+
+        <button onClick={() => shiftMonth(1)} className="btn-icon" style={{ width: '28px', height: '28px' }}>
+          <ChevronRight size={16} />
+        </button>
+      </div>
+
+      {/* Summary KPI Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+        <div
+          className="panel"
+          style={{ padding: '12px', cursor: 'pointer' }}
+          onClick={() => setDetailModal('Pago')}
+        >
+          <span className="metric-card-label" style={{ color: 'var(--color-primary-text)' }}>Recebido</span>
+          <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--color-primary-text)', display: 'block', marginTop: '2px' }}>
+            {formatCurrencyBRL(totalReceived)}
+          </span>
+          <span className="text-muted" style={{ fontSize: '10px', marginTop: '2px', display: 'block' }}>Ver pagantes</span>
         </div>
 
-        <div className="glass-panel" style={{ padding: '1.5rem', borderLeft: '4px solid var(--color-warning)', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => setDetailModal('Pendente')}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-            <div>
-              <p className="text-muted" style={{ textTransform: 'uppercase', fontSize: '0.8rem', fontWeight: 600 }}>Total Pendente (Clique p/ ver)</p>
-              <h2 style={{ fontSize: '2.5rem', color: 'var(--color-warning)' }}>{formatCurrencyBRL(totalPending)}</h2>
-            </div>
-            <div style={{ background: 'rgba(252, 163, 17, 0.1)', padding: '0.5rem', borderRadius: '50%' }}>
-              <Clock color="var(--color-warning)" />
-            </div>
-          </div>
+        <div
+          className="panel"
+          style={{ padding: '12px', cursor: 'pointer' }}
+          onClick={() => setDetailModal('Pendente')}
+        >
+          <span className="metric-card-label" style={{ color: 'var(--color-warning)' }}>Pendente</span>
+          <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--color-warning)', display: 'block', marginTop: '2px' }}>
+            {formatCurrencyBRL(totalPending)}
+          </span>
+          <span className="text-muted" style={{ fontSize: '10px', marginTop: '2px', display: 'block' }}>Ver devedores</span>
         </div>
       </div>
 
-      <h2 style={{ marginBottom: '1rem' }}>Resumo por Pelada ({formatMonthDisplay(selectedMonth)})</h2>
-      <div style={{ display: 'grid', gap: '1rem' }}>
-        {filteredMatches.map((match) => {
-          const matchEntries = entriesByMatch.get(match.id) ?? [];
-          const matchReceived = matchEntries
-            .filter((entry) => entry.paymentStatus === 'Pago')
-            .reduce((sum, entry) => sum + entry.cost, 0);
-          const matchPending = matchEntries
-            .filter((entry) => entry.paymentStatus === 'Pendente')
-            .reduce((sum, entry) => sum + entry.cost, 0);
+      {/* Match breakdown */}
+      <div>
+        <h2 className="section-title" style={{ marginBottom: '8px' }}>Peladas do Mês</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {filteredMatches.map((match) => {
+            const matchEntries = entriesByMatch.get(match.id) ?? [];
+            const matchReceived = matchEntries
+              .filter((entry) => entry.paymentStatus === 'Pago')
+              .reduce((sum, entry) => sum + entry.cost, 0);
+            const matchPending = matchEntries
+              .filter((entry) => entry.paymentStatus === 'Pendente')
+              .reduce((sum, entry) => sum + entry.cost, 0);
 
-          return (
-            <div key={match.id} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '1rem' }}>
-                <div>
-                  <h3 style={{ marginBottom: '0.25rem', color: 'var(--text-main)' }}>{match.name}</h3>
-                  <p className="text-muted" style={{ fontSize: '0.85rem' }}>{new Date(match.date).toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            return (
+              <div key={match.id} className="panel" style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>{match.name}</h3>
+                    <p className="text-muted" style={{ margin: '2px 0 0', fontSize: '11px' }}>
+                      {new Date(match.date).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })}
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <span className="badge badge-muted">Mensal {formatCurrencyBRL(match.valorMensal ?? 0)}</span>
+                    <span className="badge badge-muted">Avulso {formatCurrencyBRL(match.valorAvulso ?? 0)}</span>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', background: 'rgba(69, 242, 72, 0.1)', color: 'var(--color-primary)', borderRadius: '1rem', fontWeight: 600, height: 'fit-content' }}>Mensal {formatCurrencyBRL(match.valorMensal ?? 0)}</span>
-                  <span style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', background: 'rgba(102, 252, 241, 0.1)', color: 'var(--color-accent)', borderRadius: '1rem', fontWeight: 600, height: 'fit-content' }}>Avulso {formatCurrencyBRL(match.valorAvulso ?? 0)}</span>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '6px', fontSize: '12px' }}>
+                  <span>Recebido: <strong style={{ color: 'var(--color-primary-text)' }}>{formatCurrencyBRL(matchReceived)}</strong></span>
+                  <span>Pendente: <strong style={{ color: 'var(--color-warning)' }}>{formatCurrencyBRL(matchPending)}</strong></span>
                 </div>
               </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
-                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <p className="text-muted" style={{ fontSize: '0.8rem', textTransform: 'uppercase', margin: 0 }}>Recebido</p>
-                  <p style={{ fontWeight: 800, color: 'var(--color-primary)', fontSize: '1.2rem', margin: 0 }}>{formatCurrencyBRL(matchReceived)}</p>
-                </div>
-                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <p className="text-muted" style={{ fontSize: '0.8rem', textTransform: 'uppercase', margin: 0 }}>Pendente</p>
-                  <p style={{ fontWeight: 800, color: 'var(--color-warning)', fontSize: '1.2rem', margin: 0 }}>{formatCurrencyBRL(matchPending)}</p>
-                </div>
-              </div>
+            );
+          })}
+          {filteredMatches.length === 0 && (
+            <div className="panel" style={{ padding: '24px', textAlign: 'center' }}>
+              <p className="text-muted" style={{ margin: 0 }}>Nenhuma pelada registrada para este mês.</p>
             </div>
-          );
-        })}
-        {filteredMatches.length === 0 && <p className="text-muted">Nenhuma pelada registrada para este mês.</p>}
+          )}
+        </div>
       </div>
 
+      {/* Modal Detail */}
       {detailModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-          <div className="glass-panel" style={{ width: '100%', maxWidth: '500px', maxHeight: '80vh', overflowY: 'auto', padding: '1.5rem', background: 'var(--color-bg)', border: `1px solid ${detailModal === 'Pago' ? 'var(--color-primary)' : 'var(--color-warning)'}` }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', alignItems: 'center' }}>
-              <h2 style={{ color: detailModal === 'Pago' ? 'var(--color-primary)' : 'var(--color-warning)', margin: 0 }}>
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h2 style={{ fontSize: '15px', fontWeight: 700, margin: 0 }}>
                 Jogadores {detailModal === 'Pago' ? 'Pagos' : 'Pendentes'}
               </h2>
-              <button onClick={() => setDetailModal(null)} className="btn-icon" style={{ cursor: 'pointer' }}>X</button>
+              <button onClick={() => setDetailModal(null)} className="btn-icon" style={{ width: '28px', height: '28px' }}>
+                <X size={16} />
+              </button>
             </div>
 
-            {modalEntries.map((entry) => (
-              <div key={entry.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: 'rgba(255,255,255,0.02)', marginBottom: '0.5rem', borderRadius: '8px' }}>
-                <div>
-                  <p style={{ fontWeight: 'bold', margin: '0 0 0.25rem 0' }}>{entry.userName}</p>
-                  <p className="text-muted" style={{ fontSize: '0.8rem', margin: 0 }}>
-                    {entry.paymentType} • {entry.matchName} • {formatCurrencyBRL(entry.cost)}
-                  </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '320px', overflowY: 'auto', marginBottom: '12px' }}>
+              {modalEntries.map((entry) => (
+                <div key={entry.id} className="panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', gap: '8px' }}>
+                  <div>
+                    <span style={{ fontSize: '13px', fontWeight: 600, display: 'block' }}>{entry.userName}</span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      {entry.paymentType} • {entry.matchName} • {formatCurrencyBRL(entry.cost)}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => togglePayment(entry)}
+                    className={detailModal === 'Pago' ? 'btn-outline' : 'btn-primary'}
+                    style={{ height: '28px', fontSize: '11px', padding: '0 8px' }}
+                  >
+                    {detailModal === 'Pago' ? 'Pendente' : 'Pago'}
+                  </button>
                 </div>
-                <button
-                  onClick={() => togglePayment(entry)}
-                  className={detailModal === 'Pago' ? 'btn-danger' : 'btn-primary'}
-                  style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', cursor: 'pointer', border: 'none' }}
-                >
-                  {detailModal === 'Pago' ? 'Marcar Pendente' : 'Marcar Pago'}
-                </button>
-              </div>
-            ))}
+              ))}
 
-            {modalEntries.length === 0 && (
-              <p className="text-muted" style={{ textAlign: 'center', padding: '2rem 0' }}>Nenhum jogador encontrado.</p>
-            )}
+              {modalEntries.length === 0 && (
+                <p className="text-muted" style={{ textAlign: 'center', padding: '20px 0', margin: 0 }}>
+                  Nenhum jogador encontrado.
+                </p>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn-outline" onClick={() => setDetailModal(null)}>Fechar</button>
+            </div>
           </div>
         </div>
       )}

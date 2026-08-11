@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useAppContext } from '../context/useAppContext';
-import { Trash, UserPlus, Camera, User as UserIcon, Loader } from 'lucide-react';
+import { Trash2, UserPlus, Camera, User as UserIcon, Loader } from 'lucide-react';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../firebase';
 import type { User } from '../types';
@@ -62,13 +62,11 @@ export const Players = () => {
         resolvedPhotoUrl = await getDownloadURL(fileRef);
       } catch (err) {
         console.error('Falha no upload da foto:', err);
-        // fallback: use base64 preview rather than losing the photo
         resolvedPhotoUrl = photoPreview;
       }
     } else if (!photoPreview && !editTarget?.photoUrl) {
       resolvedPhotoUrl = '';
     } else if (!photoBlob && photoPreview) {
-      // user didn't change the photo
       resolvedPhotoUrl = editTarget?.photoUrl || photoPreview;
     }
 
@@ -91,73 +89,106 @@ export const Players = () => {
   };
 
   return (
-    <div className="players-container" style={{ animation: 'fadeIn 0.5s ease-out', paddingBottom: '2rem' }}>
-      <header className="page-header" style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h1 className="text-gradient" style={{ fontSize: '2.5rem', fontWeight: 800 }}>Jogadores</h1>
-          <p className="subtitle text-muted">A nossa lista de atletas.</p>
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <header className="page-header">
+        <h1>Jogadores ({users.length})</h1>
         <button className="btn-primary" onClick={() => openModal(null)}>
-          <UserPlus size={20} /> Novo Atleta
+          <UserPlus size={14} /> Novo Atleta
         </button>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
         {users.sort((a,b) => a.name.localeCompare(b.name)).map(u => (
-          <div key={u.id} className="glass-panel" onClick={() => openModal(u)} style={{ padding: '0.8rem 1.2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', transition: 'transform 0.2s', borderLeft: u.subscriptionType === 'Mensalista' ? '4px solid var(--color-primary)' : '4px solid var(--color-accent)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <div style={{ width: '45px', height: '45px', borderRadius: '50%', background: 'var(--color-surface-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', boxShadow: 'var(--shadow-surface)', border: '1px solid var(--border-color)' }}>
+          <div
+            key={u.id}
+            className="panel"
+            onClick={() => openModal(u)}
+            style={{
+              padding: '8px 12px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              cursor: 'pointer',
+              gap: '8px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--color-surface-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: '1px solid var(--border-color)', flexShrink: 0 }}>
                 {u.photoUrl ? (
                   <img src={u.photoUrl} alt={u.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
-                  <UserIcon size={24} color="var(--text-muted)" />
+                  <UserIcon size={16} color="var(--text-muted)" />
                 )}
               </div>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>{u.name} <span style={{fontSize: '0.8rem', color: 'var(--color-primary)', marginLeft: '0.5rem'}}>⭐ {u.overall || 50}</span></h3>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>{u.position}</span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>{u.name}</span>
+                  <span className="badge badge-primary">OVR {u.overall || 50}</span>
+                </div>
+                <div style={{ display: 'flex', gap: '6px', marginTop: '2px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                  <span>{u.position}</span>
+                  <span>•</span>
+                  <span>{u.subscriptionType}</span>
+                </div>
               </div>
             </div>
+
             <button 
               onClick={(e) => {
                 e.stopPropagation();
-                if (confirm('Excluir ' + u.name + '?')) {
-                   removeUser(u.id);
+                if (window.confirm('Excluir ' + u.name + '?')) {
+                  removeUser(u.id);
                 }
               }} 
-              style={{ background: 'transparent', color: 'var(--color-danger)', padding: '0.5rem', borderRadius: '50%', display: 'flex' }}
+              className="btn-ghost"
+              style={{ width: '28px', height: '28px', padding: 0, color: 'var(--color-danger)' }}
+              title="Excluir"
             >
-              <Trash size={18} />
+              <Trash2 size={14} />
             </button>
           </div>
         ))}
+
         {users.length === 0 && (
-          <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center' }}>
-            <p className="text-muted">Nenhum jogador cadastrado ainda.</p>
+          <div className="panel" style={{ padding: '24px', textAlign: 'center' }}>
+            <p className="text-muted" style={{ margin: 0 }}>Nenhum jogador cadastrado ainda.</p>
           </div>
         )}
       </div>
 
       {showModal && (
-        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem', animation: 'fadeIn 0.2s ease-out' }}>
-          <div className="glass-panel" style={{ padding: '2rem', width: '100%', maxWidth: '480px', maxHeight: '95vh', overflowY: 'auto', border: '1px solid var(--color-primary)' }}>
-            <h2 style={{ marginBottom: '1.5rem', fontSize: '1.8rem', fontWeight: 800 }}>{editTarget ? 'Editar Atleta' : 'Novo Atleta'}</h2>
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h2 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '14px' }}>
+              {editTarget ? 'Editar Atleta' : 'Novo Atleta'}
+            </h2>
             
             <form onSubmit={handleSubmit}>
-              
-              {/* Photo Upload Section */}
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem' }}>
+              {/* Photo Upload */}
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
                 <div 
                   onClick={() => fileInputRef.current?.click()}
-                  style={{ width: '100px', height: '100px', borderRadius: '50%', background: 'var(--color-surface-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', cursor: 'pointer', overflow: 'hidden', border: '3px solid var(--color-primary)', boxShadow: 'var(--shadow-glow)' }}
+                  style={{
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '50%',
+                    background: 'var(--color-surface-hover)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    position: 'relative',
+                    cursor: 'pointer',
+                    overflow: 'hidden',
+                    border: '1px solid var(--border-color)',
+                  }}
                 >
                   {photoPreview ? (
                     <img src={photoPreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
-                    <UserIcon size={40} color="var(--text-muted)" />
+                    <UserIcon size={28} color="var(--text-muted)" />
                   )}
-                  <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: photoPreview ? 0 : 1, transition: 'opacity 0.2s' }}>
-                    <Camera size={24} color="#fff" />
+                  <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: photoPreview ? 0 : 0.6 }}>
+                    <Camera size={18} color="#fff" />
                   </div>
                   <input 
                     type="file" 
@@ -165,45 +196,41 @@ export const Players = () => {
                     onChange={handleFileChange} 
                     hidden 
                     accept="image/*" 
-                    capture="environment"
                   />
                 </div>
               </div>
 
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>Nome Completo / Apelido</label>
-                <input name="name" className="input-base" defaultValue={editTarget?.name || ''} required placeholder="Ex: Lucas Artilheiro" />
+              <div style={{ marginBottom: '10px' }}>
+                <label className="input-label">Nome / Apelido</label>
+                <input name="name" className="input-base" defaultValue={editTarget?.name || ''} required placeholder="Ex: Lucas Silva" />
               </div>
 
-              <div style={{ marginBottom: '1.5rem', display: 'flex', gap: '1rem' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>Célula / Posição</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+                <div>
+                  <label className="input-label">Posição</label>
                   <select name="position" className="input-base" defaultValue={editTarget?.position || 'Linha'} required>
-                     <option value="Linha">Linha</option>
-                     <option value="Goleiro">Goleiro</option>
+                    <option value="Linha">Linha</option>
+                    <option value="Goleiro">Goleiro</option>
                   </select>
                 </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>Tipo de Membro</label>
+                <div>
+                  <label className="input-label">Tipo de Membro</label>
                   <select name="subscriptionType" className="input-base" defaultValue={editTarget?.subscriptionType || 'Mensalista'} required>
-                     <option value="Mensalista">Mensalista</option>
-                     <option value="Avulso">Avulso</option>
+                    <option value="Mensalista">Mensalista</option>
+                    <option value="Avulso">Avulso</option>
                   </select>
                 </div>
               </div>
               
-              <div style={{ marginBottom: '1.5rem', display: 'flex', gap: '1rem' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>Nível / Overall (0-100)</label>
-                  <input type="number" name="overall" min="0" max="100" className="input-base" defaultValue={editTarget?.overall || 50} required />
-                </div>
+              <div style={{ marginBottom: '16px' }}>
+                <label className="input-label">Nível / Overall (0-100)</label>
+                <input type="number" name="overall" min="0" max="100" className="input-base" defaultValue={editTarget?.overall || 50} required />
               </div>
               
-              
-              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-                <button type="button" className="btn-outline" style={{ border: 'none', color: 'var(--text-muted)' }} onClick={closeModal} disabled={uploading}>Cancelar</button>
-                <button type="submit" className="btn-primary" style={{ padding: '0.7rem 1.5rem', minWidth: '160px', justifyContent: 'center' }} disabled={uploading}>
-                  {uploading ? <><Loader size={16} className="spin" style={{ marginRight: '0.5rem' }} /> Enviando foto...</> : (editTarget ? 'Salvar Edição' : 'Registrar Jogador')}
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                <button type="button" className="btn-outline" onClick={closeModal} disabled={uploading}>Cancelar</button>
+                <button type="submit" className="btn-primary" disabled={uploading}>
+                  {uploading ? <><Loader size={14} className="spin" /> Salvando...</> : (editTarget ? 'Salvar' : 'Cadastrar')}
                 </button>
               </div>
             </form>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAppContext } from '../context/useAppContext';
-import { Eye, EyeOff, Loader, UserPlus, Lock, Mail, User, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Eye, EyeOff, Loader, Lock, Mail, User, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 type FieldError = {
   email?: string;
@@ -39,11 +39,11 @@ export const Register = ({ setMode }: { setMode: (m: 'login' | 'register' | 'for
     else if (!validateEmail(email)) errs.email = 'E-mail inválido.';
 
     if (!username.trim()) errs.username = 'Nome de usuário é obrigatório.';
-    else if (username.trim().length < 3) errs.username = 'Use pelo menos 3 caracteres.';
-    else if (!/^[a-zA-Z0-9 _]+$/.test(username)) errs.username = 'Apenas letras, números, espaços e _.';
+    else if (username.trim().length < 3) errs.username = 'Mínimo 3 caracteres.';
+    else if (!/^[a-zA-Z0-9 _]+$/.test(username)) errs.username = 'Apenas letras, números e _.';
 
     if (!password) errs.password = 'Senha é obrigatória.';
-    else if (passwordRules.some(r => !r.test(password))) errs.password = 'Senha não atende aos requisitos.';
+    else if (passwordRules.some(r => !r.test(password))) errs.password = 'Senha incompleta.';
 
     if (!confirmPassword) errs.confirmPassword = 'Confirme sua senha.';
     else if (password !== confirmPassword) errs.confirmPassword = 'As senhas não coincidem.';
@@ -73,7 +73,7 @@ export const Register = ({ setMode }: { setMode: (m: 'login' | 'register' | 'for
       } else if (fbErr.code === 'auth/weak-password') {
         setErrors({ password: 'Senha muito fraca.' });
       } else if (fbErr.code === 'auth/operation-not-allowed') {
-        setErrors({ general: 'O cadastro via e-mail e senha está desativado no Console do Firebase. Ative-o para continuar.' });
+        setErrors({ general: 'Cadastro por e-mail desativado no Firebase.' });
       } else {
         const errorMsg = (err as { message?: string }).message || 'Erro ao criar conta. Tente novamente.';
         setErrors({ general: errorMsg });
@@ -88,14 +88,11 @@ export const Register = ({ setMode }: { setMode: (m: 'login' | 'register' | 'for
 
   if (success) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', padding: '2rem', background: 'var(--color-bg)' }}>
-        <div className="glass-panel" style={{ width: '100%', maxWidth: '450px', padding: '3rem 2rem', textAlign: 'center', animation: 'fadeIn 0.5s ease-out' }}>
-          <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'linear-gradient(135deg, #22c55e, #16a34a)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', fontSize: '2rem' }}>
-            ✅
-          </div>
-          <h2 style={{ marginBottom: '0.75rem' }}>Conta criada!</h2>
-          <p className="text-muted" style={{ marginBottom: '2rem' }}>Bem-vindo, <strong>{username}</strong>! Sua conta foi criada com sucesso.</p>
-          <button className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setMode('login')}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', padding: '16px', background: 'var(--color-bg)' }}>
+        <div className="panel" style={{ width: '100%', maxWidth: '380px', padding: '24px', textAlign: 'center' }}>
+          <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '6px' }}>Conta criada com sucesso</h2>
+          <p className="text-muted" style={{ marginBottom: '16px', fontSize: '13px' }}>Bem-vindo, <strong>{username}</strong>!</p>
+          <button className="btn-primary" style={{ width: '100%' }} onClick={() => setMode('login')}>
             Fazer login
           </button>
         </div>
@@ -104,32 +101,26 @@ export const Register = ({ setMode }: { setMode: (m: 'login' | 'register' | 'for
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'var(--color-bg)' }}>
-      {/* Header */}
-      <div style={{ padding: '3rem 2rem 2rem', textAlign: 'center' }}>
-        <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-primary), var(--color-accent))', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', fontSize: '2rem' }}>⚽</div>
-        <h1 className="text-gradient" style={{ fontSize: '2.2rem', fontWeight: 800, letterSpacing: '-1px' }}>NOSSA PELADA</h1>
-        <p className="text-muted" style={{ marginTop: '0.5rem' }}>Crie sua conta para começar</p>
-      </div>
-
-      {/* Card */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '2rem 1.5rem', background: 'var(--color-surface)', borderTopLeftRadius: '30px', borderTopRightRadius: '30px', boxShadow: '0 -4px 20px rgba(0,0,0,0.07)' }}>
-        <h2 style={{ marginBottom: '0.5rem', fontSize: '1.5rem', fontWeight: 700 }}>Criar Conta</h2>
-        <p className="text-muted" style={{ marginBottom: '1.5rem', fontSize: '0.9rem' }}>Preencha os campos para acesso</p>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', justifyContent: 'center', alignItems: 'center', padding: '16px', background: 'var(--color-bg)' }}>
+      <div className="panel" style={{ width: '100%', maxWidth: '380px', padding: '24px 20px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '18px' }}>
+          <h1 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 4px', color: 'var(--text-main)' }}>Criar Conta</h1>
+          <p className="text-muted" style={{ margin: 0, fontSize: '13px' }}>Preencha os campos para acesso</p>
+        </div>
 
         {errors.general && (
-          <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', borderRadius: 'var(--radius-md)', padding: '0.75rem 1rem', marginBottom: '1.5rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <AlertCircle size={16} /> {errors.general}
+          <div style={{ background: 'var(--color-danger-bg)', border: '1px solid var(--color-danger)', color: 'var(--color-danger)', borderRadius: 'var(--radius-sm)', padding: '8px 10px', marginBottom: '14px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <AlertCircle size={14} /> {errors.general}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+        <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {/* Email */}
           <div>
-            <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>E-mail</label>
+            <label className="input-label">E-mail</label>
             <div style={{ position: 'relative' }}>
-              <span style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', display: 'flex' }}>
-                <Mail size={16} />
+              <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', display: 'flex' }}>
+                <Mail size={15} />
               </span>
               <input
                 id="reg-email"
@@ -139,42 +130,42 @@ export const Register = ({ setMode }: { setMode: (m: 'login' | 'register' | 'for
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 onBlur={() => handleBlur('email')}
-                style={{ paddingLeft: '2.5rem' }}
+                style={{ paddingLeft: '32px' }}
                 autoComplete="email"
               />
             </div>
-            {fieldError('email') && <p style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><AlertCircle size={12} />{fieldError('email')}</p>}
+            {fieldError('email') && <p style={{ color: 'var(--color-danger)', fontSize: '11px', margin: '3px 0 0' }}>{fieldError('email')}</p>}
           </div>
 
           {/* Username */}
           <div>
-            <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>Nome de Usuário</label>
+            <label className="input-label">Nome de Usuário</label>
             <div style={{ position: 'relative' }}>
-              <span style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', display: 'flex' }}>
-                <User size={16} />
+              <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', display: 'flex' }}>
+                <User size={15} />
               </span>
               <input
                 id="reg-username"
                 className={`input-base${fieldError('username') ? ' input-error' : ''}`}
                 type="text"
-                placeholder="Será seu login (Ex: jogador_7)"
+                placeholder="Ex: jogador_7"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 onBlur={() => handleBlur('username')}
-                style={{ paddingLeft: '2.5rem' }}
+                style={{ paddingLeft: '32px' }}
                 autoComplete="username"
                 maxLength={40}
               />
             </div>
-            {fieldError('username') && <p style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><AlertCircle size={12} />{fieldError('username')}</p>}
+            {fieldError('username') && <p style={{ color: 'var(--color-danger)', fontSize: '11px', margin: '3px 0 0' }}>{fieldError('username')}</p>}
           </div>
 
           {/* Password */}
           <div>
-            <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>Senha</label>
+            <label className="input-label">Senha</label>
             <div style={{ position: 'relative' }}>
-              <span style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', display: 'flex' }}>
-                <Lock size={16} />
+              <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', display: 'flex' }}>
+                <Lock size={15} />
               </span>
               <input
                 id="reg-password"
@@ -184,23 +175,23 @@ export const Register = ({ setMode }: { setMode: (m: 'login' | 'register' | 'for
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 onBlur={() => handleBlur('password')}
-                style={{ paddingLeft: '2.5rem', paddingRight: '3rem' }}
+                style={{ paddingLeft: '32px', paddingRight: '36px' }}
                 autoComplete="new-password"
               />
-              <button type="button" onClick={() => setShowPassword(v => !v)} style={{ position: 'absolute', right: '0.85rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', padding: 0 }}>
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              <button type="button" onClick={() => setShowPassword(v => !v)} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', padding: 0 }}>
+                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
-            {fieldError('password') && <p style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><AlertCircle size={12} />{fieldError('password')}</p>}
+            {fieldError('password') && <p style={{ color: 'var(--color-danger)', fontSize: '11px', margin: '3px 0 0' }}>{fieldError('password')}</p>}
 
             {/* Password strength indicators */}
             {password && (
-              <div style={{ marginTop: '0.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.25rem 0.5rem' }}>
+              <div style={{ marginTop: '4px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 6px' }}>
                 {passwordRules.map(rule => {
                   const ok = rule.test(password);
                   return (
-                    <div key={rule.label} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem', color: ok ? '#22c55e' : 'var(--text-muted)' }}>
-                      <CheckCircle2 size={11} style={{ opacity: ok ? 1 : 0.4 }} />
+                    <div key={rule.label} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: ok ? 'var(--color-primary-text)' : 'var(--text-muted)' }}>
+                      <CheckCircle2 size={10} style={{ opacity: ok ? 1 : 0.4 }} />
                       {rule.label}
                     </div>
                   );
@@ -211,10 +202,10 @@ export const Register = ({ setMode }: { setMode: (m: 'login' | 'register' | 'for
 
           {/* Confirm Password */}
           <div>
-            <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>Confirmar Senha</label>
+            <label className="input-label">Confirmar Senha</label>
             <div style={{ position: 'relative' }}>
-              <span style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', display: 'flex' }}>
-                <Lock size={16} />
+              <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', display: 'flex' }}>
+                <Lock size={15} />
               </span>
               <input
                 id="reg-confirm"
@@ -224,17 +215,14 @@ export const Register = ({ setMode }: { setMode: (m: 'login' | 'register' | 'for
                 value={confirmPassword}
                 onChange={e => setConfirmPassword(e.target.value)}
                 onBlur={() => handleBlur('confirmPassword')}
-                style={{ paddingLeft: '2.5rem', paddingRight: '3rem' }}
+                style={{ paddingLeft: '32px', paddingRight: '36px' }}
                 autoComplete="new-password"
               />
-              <button type="button" onClick={() => setShowConfirm(v => !v)} style={{ position: 'absolute', right: '0.85rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', padding: 0 }}>
-                {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+              <button type="button" onClick={() => setShowConfirm(v => !v)} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', padding: 0 }}>
+                {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
-            {fieldError('confirmPassword') && <p style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><AlertCircle size={12} />{fieldError('confirmPassword')}</p>}
-            {touched.confirmPassword && !fieldError('confirmPassword') && confirmPassword && (
-              <p style={{ color: '#22c55e', fontSize: '0.78rem', marginTop: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><CheckCircle2 size={12} />Senhas conferem</p>
-            )}
+            {fieldError('confirmPassword') && <p style={{ color: 'var(--color-danger)', fontSize: '11px', margin: '3px 0 0' }}>{fieldError('confirmPassword')}</p>}
           </div>
 
           <button
@@ -242,34 +230,27 @@ export const Register = ({ setMode }: { setMode: (m: 'login' | 'register' | 'for
             type="submit"
             className="btn-primary"
             disabled={loading}
-            style={{ width: '100%', justifyContent: 'center', marginTop: '0.5rem', opacity: loading ? 0.7 : 1 }}
+            style={{ width: '100%', height: '36px', fontSize: '13px', marginTop: '6px' }}
           >
-            {loading ? <Loader size={18} className="spin" /> : <UserPlus size={18} />}
+            {loading ? <Loader size={15} className="spin" /> : null}
             {loading ? 'Criando conta...' : 'Criar Conta'}
           </button>
         </form>
 
-        <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
-          <p className="text-muted" style={{ fontSize: '0.9rem' }}>
+        <div style={{ marginTop: '16px', textAlign: 'center' }}>
+          <p className="text-muted" style={{ fontSize: '12px', margin: 0 }}>
             Já tem uma conta?{' '}
-            <span style={{ color: 'var(--color-primary)', fontWeight: 600, cursor: 'pointer' }} onClick={() => setMode('login')}>
+            <button
+              type="button"
+              className="btn-link"
+              style={{ fontSize: '12px', fontWeight: 600 }}
+              onClick={() => setMode('login')}
+            >
               Fazer login
-            </span>
-          </p>
-          <p style={{ marginTop: '0.75rem' }}>
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', cursor: 'pointer' }} onClick={() => setMode('forgot')}>
-              Esqueceu a senha?
-            </span>
+            </button>
           </p>
         </div>
       </div>
-
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .spin { animation: spin 1s linear infinite; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .input-error { border-color: #ef4444 !important; box-shadow: 0 0 0 2px rgba(239,68,68,0.15) !important; }
-      `}</style>
     </div>
   );
 };
